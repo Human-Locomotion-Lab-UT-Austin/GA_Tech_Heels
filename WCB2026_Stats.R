@@ -1,7 +1,12 @@
 library(tidyverse)
 library(infer)
 library(ggplot2)
+library(ggExtra)
 library(mosaic)
+library(cowplot)
+library(lmtest)
+library(lme4)
+#help me
 
 f <- "https://raw.githubusercontent.com/Human-Locomotion-Lab-UT-Austin/GA_Tech_Heels/refs/heads/main/participant_data_sheet_R.csv"
 d <- read_csv(f, col_names = TRUE)
@@ -9,7 +14,7 @@ head(d)
 
 diff_data <- d |>
   group_by(ParticipantID) |>
-  summarize(compliance = Compliance[Time == "Pre"], k_lin = k_lin[Time == "Post"] - k_lin[Time == "Pre"], at_length = ATLength[Time == "Post"] - ATLength[Time == "Pre"])
+  summarize(compliance = Compliance[Time == "Pre"], k_lin = (k_lin[Time == "Post"] - k_lin[Time == "Pre"])/k_lin[Time == "Pre"], at_length = (ATLength[Time == "Post"] - ATLength[Time == "Pre"])/ATLength[Time == "Pre"])
 
 
 # did stiffness change (for each group & between groups)
@@ -198,4 +203,93 @@ for (i in 1:nperm) {
 histogram(perm_diff, v = obs_diff)
 (p_val <- mean(abs(perm_diff) >= abs(obs_diff))) # mean strain was significantly lower in heel condition compared to flat condition
 
+
 # what was the factor that best predicted change in stiffness (strain impulse, peak strain, mean strain, total steps, heel steps)
+reg_data <- diff_data |>
+  mutate(total_steps = d$TotalSteps[d$Time == "Post"], htd_steps = d$HTDSteps[d$Time == "Post"], 
+         strain_impulse_diff = d$heels_strain_impulse[d$Time == "Post"] - d$flats_strain_impulse[d$Time == "Post"], 
+         peak_strain_diff = d$heels_peak_strain[d$Time == "Post"] - d$flats_peak_strain[d$Time == "Post"], 
+         mean_strain_diff = d$heels_mean_strain[d$Time == "Post"] - d$flats_mean_strain[d$Time == "Post"],
+         peak_Fr_diff = d$heels_peak_Fr[d$Time == "Post"] - d$flats_peak_Fr[d$Time == "Post"])
+
+ts_m <- lm(data = reg_data, k_lin ~ total_steps)
+summary(ts_m) # not significant
+
+htd_steps_model <- lm(data = reg_data, k_lin ~ htd_steps)
+summary(htd_steps_model) # not significant
+
+strain_impulse_model <- lm(data = reg_data, k_lin ~ strain_impulse_diff)
+summary(strain_impulse_model) # not significant
+
+peak_strain_model <- lm(data = reg_data, k_lin ~ peak_strain_diff)
+summary(peak_strain_model)
+
+# Graphs
+users_full <- d |>
+  filter(Compliance == "User")
+nonusers_full <- d |>
+  filter(Compliance == "Nonuser")
+
+p1 <- users_full |>
+  ggplot(aes(x=Time, y=k_lin)) +
+  geom_boxplot(alpha = 0.3, color = "black", fill = "white", linewidth = 0.5, whisker.linewidth = 1) +
+  scale_x_discrete(limits = c("Pre", "Post")) +
+  geom_point(color="orange", size=3) +
+  geom_line(aes(group = ParticipantID), color = "orange", alpha = 1) +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=20, hjust=0.5)
+  ) +
+  ggtitle("Users") +
+  xlab("Timepoint") +
+  ylab(expression(paste("Achilles Tendon Stiffness ", italic("(N/mm)")^2))) +
+  ylim(100,400)
+p1
+
+p2 <- nonusers_full |>
+  ggplot(aes(x=Time, y=k_lin)) +
+  geom_boxplot(alpha = 0.3, color = "black", fill = "black", linewidth = 0.5, whisker.linewidth = 1) +
+  scale_x_discrete(limits = c("Pre", "Post")) +
+  geom_point(color="orange", size=3) +
+  geom_line(aes(group = ParticipantID), color = "orange", alpha = 1) +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=20, hjust=0.5)
+  ) +
+  ggtitle("Nonusers") +
+  xlab("Timepoint") +
+  ylab(expression(paste("Achilles Tendon Stiffness ", italic("(N/mm)")^2))) +
+  ylim(100,400)
+p2
+
+f <- "https://raw.githubusercontent.com/Human-Locomotion-Lab-UT-Austin/GA_Tech_Heels/refs/heads/main/HeelsFlatsComp_R.csv"
+heels_flats_comp <- read_csv(f, col_names = TRUE)
+
+p3 <- heels_flats_comp |>
+  ggplot(aes(x=Condition, y= strain_impulse)) +
+  geom_boxplot(alpha = 0.3, color = "black", fill = "lightblue", linewidth = 0.5, whisker.linewidth = 1) +
+  scale_x_discrete(limits = c("Flats", "Heels")) +
+  geom_point(color="orange", size=3) +
+  theme(
+    legend.position="none",
+    plot.title = element_text(size=20, hjust = 0.5)
+  ) +
+  ggtitle("Strain Difference Between Heels and Flats") +
+  xlab("Condition") +
+  ylab(expression(paste("Mean Achilles Tendon Strain", italic("(%)")))) +
+  ylim(0,3)
+p3
+
+plot_grid(
+  plot_grid(
+    p1,
+    p2,
+    labels = c("A", "B"),
+    label_size = 12,
+    nrow = 1
+  ),
+  p3,
+  labels = c("", "C"),
+  label_size = 12,
+  nrow = 2
+)
