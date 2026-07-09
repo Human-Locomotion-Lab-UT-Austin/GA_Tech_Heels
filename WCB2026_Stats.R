@@ -99,6 +99,7 @@ histogram(perm_diff, v = obs_diff)
 # Nonusers
 nonusers <- diff_data |>
   filter(compliance == "Nonuser")
+
 x <- nonusers$at_length # change in at_length
 n <- length(x)
 m <- mean(x) # average change in at_length
@@ -494,7 +495,7 @@ peak_forces_fig <- heels_flats_comp |>
   theme(
     panel.background = element_rect(fill = "white", color = NA),
     legend.position = "none",
-    plot.title = element_text(size = 30, hjust = 0.5),
+    plot.title = element_text(size = 28, hjust = 0.5),
     plot.subtitle = element_text(hjust=0.5, size = 18),
     panel.grid.major = element_blank(),
     axis.title.x = element_blank(),
@@ -505,14 +506,14 @@ peak_forces_fig <- heels_flats_comp |>
     axis.ticks.length = unit(-4, "pt"),
     axis.line = element_line(color = "black", linewidth = 0.5)
   ) +
-  ggtitle("Peak Ground Reaction Force", subtitle = paste("P =", round(peak_GRF_p_val, 3))) +
+  ggtitle("Peak GRFs", subtitle = paste("P =", round(peak_GRF_p_val, 3))) +
  #geom_text(
     #data = label_data,
     #aes(x = box_x, y = peak_Fr_upper_whisker, label = paste("mean =", round(mean_peak_Fr, 1))),
     #vjust = -1, size = 4, inherit.aes = FALSE) +
   xlab("Footwear Condition") +
-  ylab(expression(paste("Ground Reaction Force (BW)"))) +
-  ylim(1, 1.45)
+  ylab(expression(paste("Resultant GRFs (BW)"))) +
+  ylim(1.1, 1.45)
 
 peak_forces_fig
 
@@ -529,7 +530,7 @@ peak_strain_fig <- heels_flats_comp |>
   theme(
     panel.background = element_rect(fill = "white", color = NA),
     legend.position = "none",
-    plot.title = element_text(size = 30, hjust = 0.5),
+    plot.title = element_text(size = 28, hjust = 0.5),
     plot.subtitle = element_text(hjust=0.5, size = 18),
     panel.grid.major = element_blank(),
     axis.title.x = element_blank(),
@@ -546,7 +547,7 @@ peak_strain_fig <- heels_flats_comp |>
   ggtitle("Peak Strain", subtitle = paste("P =", round(peak_strain_p_val, 3))) +
   xlab("Footwear Condition") +
   ylab(expression(paste("Peak Tendon Strain (%)"))) +
-  ylim(0, 10)
+  ylim(2.5, 10)
 peak_strain_fig
 
 mean_strain_fig <- heels_flats_comp |>
@@ -561,7 +562,7 @@ mean_strain_fig <- heels_flats_comp |>
   theme(
     panel.background = element_rect(fill = "white", color = NA),
     legend.position = "none",
-    plot.title = element_text(size = 30, hjust = 0.5),
+    plot.title = element_text(size = 28, hjust = 0.5),
     plot.subtitle = element_text(hjust=0.5, size = 18),
     panel.grid.major = element_blank(),
     axis.title.x = element_blank(),
@@ -579,7 +580,7 @@ mean_strain_fig <- heels_flats_comp |>
   ggtitle("Mean Strain", subtitle = paste("P =", round(mean_strain_p_val, 3))) +
   xlab("Footwear Condition") +
   ylab(expression(paste("Mean Tendon Strain (%)"))) +
-  ylim(0, 3)
+  ylim(0.8, 3)
 mean_strain_fig
 
 strain_impulse_fig <- heels_flats_comp |>
@@ -594,7 +595,7 @@ strain_impulse_fig <- heels_flats_comp |>
   theme(
     panel.background = element_rect(fill = "white", color = NA),
     legend.position = "none",
-    plot.title = element_text(size = 30, hjust = 0.5),
+    plot.title = element_text(size = 28, hjust = 0.5),
     plot.subtitle = element_text(hjust=0.5, size = 18),
     panel.grid.major = element_blank(),
     axis.title.x = element_blank(),
@@ -612,7 +613,7 @@ strain_impulse_fig <- heels_flats_comp |>
   ggtitle("Strain Impulse", subtitle = paste("P =", round(strain_impulse_p_val, 3))) +
   xlab("Footwear Condition") +
   ylab(expression(paste("Tendon Strain Impulse (% ", "\u00B7", " s)"))) +
-  ylim(0, 3.1)
+  ylim(0.8, 3.1)
 strain_impulse_fig
 
 
@@ -639,6 +640,7 @@ htd_steps_fig <- htd_steps |>
   geom_point(aes(x = x_num, y = HTDSteps, color = factor(ParticipantID)), size = 5) +
   scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.9, 1.6)) +
   scale_y_continuous(limits = c(0, 3800), expand = expansion(mult = c(0, 0.05)), breaks = scales::breaks_width(500)) +
+  coord_cartesian(clip = "off") +
   scale_fill_manual(values = c("1" = "#FFCC99", "1.5" = "#CC6600")) +
   participant_color_scale +
   theme(
@@ -648,15 +650,15 @@ htd_steps_fig <- htd_steps |>
     plot.subtitle = element_text(hjust = 0.5),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    axis.text = element_text(size = 16, color = "black"),
+    axis.text = element_text(size = 18, color = "black"),
     axis.title.y.left = element_text(color = "black", size = 26, margin = margin(r = 14)),
     axis.title.x = element_text(size = 26, margin = margin(t = 14)),
     axis.ticks.length = unit(-4, "pt"),
     axis.line = element_line(color = "black", linewidth = 0.5)
   ) +
-  ggtitle("Steps in Heels per Day") +
+  ggtitle("Steps in High Heels per Day") +
   xlab("Group") +
-  ylab(expression(paste("Steps in Heels per Day ")))
+  ylab(expression(paste("Steps in High Heels per Day ")))
 htd_steps_fig
 
 total_steps_fig <- htd_steps |>
@@ -667,7 +669,7 @@ total_steps_fig <- htd_steps |>
                width = 0.06, color = "black", linewidth = 0.5) +
   geom_point(aes(x = x_num, y = TotalSteps, color = factor(ParticipantID)), size = 5) +
   scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.9, 1.6)) +
-  scale_y_continuous(limits = c(0, 17000), expand = expansion(mult = c(0, 0.05)), breaks = scales::breaks_width(2500)) +
+  scale_y_continuous(limits = c(0, 16000), expand = expansion(mult = c(0, 0.05)), breaks = scales::breaks_width(2500)) +
   scale_fill_manual(values = c("1" = "#FFCC99", "1.5" = "#CC6600")) +
   participant_color_scale +
   theme(
@@ -677,7 +679,7 @@ total_steps_fig <- htd_steps |>
     plot.subtitle = element_text(hjust = 0.5),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-    axis.text = element_text(size = 16, color = "black"),
+    axis.text = element_text(size = 18, color = "black"),
     axis.title.y.left = element_text(color = "black", size = 26, margin = margin(r = 14)),
     axis.title.x = element_text(size = 26, margin = margin(t = 14)),
     axis.ticks.length = unit(-4, "pt"),
@@ -701,32 +703,20 @@ ggsave2("users_vs_nonusers_steps_fig.pdf", combined_steps_fig, path = "/Users/an
 
 
 # --- ONE shared scale factor across both datasets ---
-combined_scale_factor <- max(
-  max(flats_grf_ema$Fr_N / 510.12, na.rm = TRUE) / max(flats_grf_ema$EMA, na.rm = TRUE),
-  max(heels_grf_ema$Fr_N / 510.12, na.rm = TRUE) / max(heels_grf_ema$EMA, na.rm = TRUE)
-)
-
-# --- shared y-range across both datasets (primary axis units) ---
-shared_y_max <- max(
-  max(flats_grf_ema$Fr_N / 510.12, na.rm = TRUE),
-  max(flats_grf_ema$EMA * combined_scale_factor, na.rm = TRUE),
-  max(heels_grf_ema$Fr_N / 510.12, na.rm = TRUE),
-  max(heels_grf_ema$EMA * combined_scale_factor, na.rm = TRUE)
-)
-shared_y_min <- min(
-  min(flats_grf_ema$Fr_N / 510.12, na.rm = TRUE),
-  min(flats_grf_ema$EMA * combined_scale_factor, na.rm = TRUE),
-  min(heels_grf_ema$Fr_N / 510.12, na.rm = TRUE),
-  min(heels_grf_ema$EMA * combined_scale_factor, na.rm = TRUE)
-)
-shared_ylim <- c(shared_y_min, shared_y_max)
-shared_breaks <- scales::breaks_width(0.25)
-
 # --- Combine the two datasets into one, tagging each with its source ---
 combined_data <- bind_rows(
   flats_grf_ema |> mutate(Source = "Flats"),
   heels_grf_ema |> mutate(Source = "Heels")
 )
+
+# --- Convert Time_s to % of stance, computed separately for each Source ---
+combined_data <- combined_data |>
+  group_by(Source) |>
+  mutate(
+    Pct_Stance = (Time_s - min(Time_s, na.rm = TRUE)) /
+      (max(Time_s, na.rm = TRUE) - min(Time_s, na.rm = TRUE)) * 100
+  ) |>
+  ungroup()
 
 # Build a single grouping variable so each of the 4 lines gets its own color
 combined_data <- combined_data |>
@@ -736,13 +726,18 @@ combined_data <- combined_data |>
   )
 
 combined_grf_ema_fig <- combined_data |>
-  ggplot(aes(x = Time_s)) +
+  ggplot(aes(x = Pct_Stance)) +
   geom_line(aes(y = Fr_N / 510.12, color = GRF_series), linewidth = 2) +
   geom_line(aes(y = EMA * combined_scale_factor, color = EMA_series), linewidth = 2) +
   scale_y_continuous(
     name = "Ground Reaction Force (BW)",
     breaks = shared_breaks,
     sec.axis = sec_axis(~ . / combined_scale_factor, name = "Effective Mechanical Advantage (r/R)")
+  ) +
+  scale_x_continuous(
+    name = "Stance (%)",
+    breaks = seq(0, 100, by = 25),
+    labels = scales::label_number(suffix = "%")
   ) +
   coord_cartesian(ylim = shared_ylim) +
   scale_color_manual(
@@ -779,8 +774,7 @@ combined_grf_ema_fig <- combined_data |>
     legend.title = element_blank(),
     legend.key = element_rect(fill = "white", color = NA),
     legend.text = element_text(size = 18)
-  ) +
-  xlab(expression(paste("Time (s)")))
+  )
 
 combined_grf_ema_fig
 
@@ -791,54 +785,41 @@ ggsave2("flats_vs_heels_grf_ema_combined_fig.pdf", combined_grf_ema_fig, path = 
 # Strain over a stride
 # common 0-100% stride grid to interpolate everyone onto
 pct_grid <- seq(0, 100, length.out = 101)
-
 interp_list <- map(heel_data, function(df) {
   approx(df$stride_percent, df$lin_strain_percent, xout = pct_grid)$y
 })
 interp_matrix <- do.call(cbind, interp_list)
-
 heels_avg_strain <- rowMeans(interp_matrix, na.rm = TRUE)
-
-# average stride duration (s) across participants, used to rescale the x-axis
-heels_avg_stride_duration <- mean(map_dbl(heel_data, ~ max(.x$time_s)))
-heels_time_axis_s <- pct_grid / 100 * heels_avg_stride_duration
-
 heels_plot_df <- data.frame(
-  time_s = heels_time_axis_s,
+  stride_pct = pct_grid,
   avg_lin_strain = heels_avg_strain,
   condition = "HEEL"
 )
 
 flat_data <- strain_data$FLAT
-
 interp_list <- map(flat_data, function(df) {
   approx(df$stride_percent, df$lin_strain_percent, xout = pct_grid)$y
 })
 interp_matrix <- do.call(cbind, interp_list)
-
 flats_avg_strain <- rowMeans(interp_matrix, na.rm = TRUE)
-
-# average stride duration (s) across participants, used to rescale the x-axis
-flats_avg_stride_duration <- mean(map_dbl(flat_data, ~ max(.x$time_s)))
-flats_time_axis_s <- pct_grid / 100 * flats_avg_stride_duration
-
 flats_plot_df <- data.frame(
-  time_s = flats_time_axis_s,
+  stride_pct = pct_grid,
   avg_lin_strain = flats_avg_strain,
   condition = "FLAT"
 )
 
 combined_df <- rbind(heels_plot_df, flats_plot_df)
 
-strain_stride_fig <- ggplot(combined_df, aes(x = time_s, y = avg_lin_strain, color = condition)) +
+strain_stride_fig <- ggplot(combined_df, aes(x = stride_pct, y = avg_lin_strain, color = condition)) +
   geom_line(linewidth = 2) +
   labs(
-    x = "Time (s)",
+    x = "Stride (%)",
     y = "Strain (%)",
     color = "Location",
     title = "Achilles Tendon Strain Over a Stride"
   ) +
-  scale_color_manual(name = NULL, values = c("FLAT" = "black", "HEEL" = "#CC6600"),labels = c("FLAT" = "Flats", "HEEL" = "Heels")) +
+  scale_x_continuous(breaks = seq(0, 100, by = 25), labels = scales::label_number(suffix = "%")) +
+  scale_color_manual(name = NULL, values = c("FLAT" = "black", "HEEL" = "#CC6600"), labels = c("FLAT" = "Flats", "HEEL" = "Heels")) +
   theme(
     panel.background = element_rect(fill = "white", color = NA),
     plot.background = element_rect(fill = "white", color = NA),
@@ -846,11 +827,11 @@ strain_stride_fig <- ggplot(combined_df, aes(x = time_s, y = avg_lin_strain, col
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
     axis.line = element_line(color = "black", linewidth = 0.5),
-    axis.title.y.left = element_text(size= 26, color = "black", margin = margin(r = 14)),
-    axis.title.x = element_text(size = 26, margin = margin(t = 14)),
-    axis.text.y.right = element_text(color = "black"),
+    axis.title.y.left = element_text(size= 26, color = "black", margin = margin(r = 10)),
+    axis.title.x = element_text(size = 26, margin = margin(t = 10)),
     axis.ticks.length = unit(-4, "pt"),
-    axis.text = element_text(size = 16, color = "black"),
+    axis.text.x = element_text(size = 18, color = "black", margin = margin(t=10)),
+    axis.text.y = element_text(size = 18, color = "black", margin = margin(r=10)),
     legend.position = "inside",
     legend.position.inside = c(0.15, 0.95),
     legend.justification = c("right", "top"),
@@ -860,10 +841,9 @@ strain_stride_fig <- ggplot(combined_df, aes(x = time_s, y = avg_lin_strain, col
     legend.key = element_rect(fill = "white", color = NA),
     legend.text = element_text(size = 20)
   )
-
 strain_stride_fig
 
-ggsave2("flats_vs_heels_strain_stride_fig.pdf", strain_stride_fig, path = "/Users/andrewthornton/Documents/WCB2026/Figures")
+ggsave2("flats_vs_heels_strain_stride_fi g.pdf", strain_stride_fig, path = "/Users/andrewthornton/Documents/WCB2026/Figures")
 
 
 
@@ -909,10 +889,9 @@ total_steps_reg_fig
 
 # --- Plot 2: HTD Steps ---
 s2 <- summary(htd_steps_model)
-r2_2 <- formatC(s2$r.squared, digits = 3, format = "f")
+r_2 <- formatC(sign(coef(htd_steps_model)[2]) * sqrt(s2$r.squared), digits = 3, format = "f")
 p_2 <- s2$coefficients[2, 4]
 p_label_2 <- if (p_2 < 0.001) "p < 0.001" else paste0("p = ", formatC(p_2, digits = 3, format = "f"))
-
 htd_steps_reg_fig <- ggplot(reg_data, aes(x = htd_steps, y = k_lin, color = factor(ParticipantID))) +
   geom_point(size = 6, alpha = 0.7) +
   geom_smooth(method = "lm", se = FALSE, color = "#CC6600", fill = "#CC6600", alpha = 0.15, linewidth = 1, fullrange = TRUE) +
@@ -924,10 +903,11 @@ htd_steps_reg_fig <- ggplot(reg_data, aes(x = htd_steps, y = k_lin, color = fact
   scale_y_continuous(breaks = seq(-40, 40, by = 10)) +
   coord_cartesian(ylim = c(-25, 35)) +
   labs(
-    x = "Steps in Heels per Day",
+    x = "Steps in High Heels per Day",
     y = (expression(paste(Delta, "Achilles Tendon Stiffness (", Delta, "%)"))),
-    subtitle = bquote(R^2 == .(r2_2) * ", " * .(p_label_2))
+    subtitle = bquote(r == .(r_2) * ", " * .(p_label_2))
   ) +
+  participant_color_scale +
   theme(
     panel.background = element_rect(fill = "white", color = NA),
     plot.background = element_rect(fill = "white", color = NA),
@@ -941,10 +921,10 @@ htd_steps_reg_fig <- ggplot(reg_data, aes(x = htd_steps, y = k_lin, color = fact
     axis.text.y.right = element_text(color = "black"),
     axis.ticks = element_line(color = "black", linewidth = 0.4),
     axis.ticks.length = unit(-4, "pt"),
-    axis.text = element_text(color = "black", size = 14),
+    axis.text.x = element_text(color = "black", size = 18, margin = margin(t=10)),
+    axis.text.y = element_text(color = "black", size = 18, margin = margin(r=10)),
     legend.position = "none"
-  ) +
-  ggtitle("Steps in Heels")
+  )
 htd_steps_reg_fig
 
 ggsave2("htd_steps_reg_fig.pdf", htd_steps_reg_fig, path = "/Users/andrewthornton/Documents/WCB2026/Figures")
@@ -952,7 +932,7 @@ ggsave2("htd_steps_reg_fig.pdf", htd_steps_reg_fig, path = "/Users/andrewthornto
 
 # --- Plot 3: Strain Impulse Difference ---
 s3 <- summary(strain_impulse_model)
-r2_3 <- formatC(s3$r.squared, digits = 3, format = "f")
+r_3 <- formatC(sign(coef(strain_impulse_model)[2]) * sqrt(s3$r.squared), digits = 3, format = "f")
 p_3 <- s3$coefficients[2, 4]
 p_label_3 <- if (p_3 < 0.001) "p < 0.001" else paste0("p = ", formatC(p_3, digits = 3, format = "f"))
 
@@ -968,8 +948,9 @@ strain_impulse_reg_fig <- ggplot(reg_data, aes(x = strain_impulse_diff, y = k_li
   labs(
     x = expression(paste(Delta, "Strain Impulse (Heels - Flats) (", Delta, "%)")),
     y = (expression(paste(Delta, "Tendon Stiffness (", Delta, "%)"))),
-    subtitle = bquote(R^2 == .(r2_3) * ", " * .(p_label_3))
+    subtitle = bquote(r == .(r_3) * ", " * .(p_label_3))
   ) +
+  participant_color_scale +
   theme(
     panel.background = element_rect(fill = "white", color = NA),
     plot.background = element_rect(fill = "white", color = NA),
@@ -992,7 +973,7 @@ strain_impulse_reg_fig
 
 # --- Plot 4: Peak Strain Difference ---
 s4 <- summary(peak_strain_model)
-r2_4 <- formatC(s4$r.squared, digits = 3, format = "f")
+r_4 <- formatC(sign(coef(peak_strain_model)[2]) * sqrt(s4$r.squared), digits = 3, format = "f")
 p_4 <- s4$coefficients[2, 4]
 p_label_4 <- if (p_4 < 0.001) "p < 0.001" else paste0("p = ", formatC(p_4, digits = 3, format = "f"))
 
@@ -1008,8 +989,9 @@ peak_strain_reg_fig <- ggplot(reg_data, aes(x = peak_strain_diff, y = k_lin, col
   labs(
     x = expression(paste(Delta, "Peak Strain (Heels - Flats) (", Delta, "%)")),
     y = expression(paste(Delta, "Tendon Stiffness (", Delta, "%)")),
-    subtitle = bquote(R^2 == .(r2_4) * ", " * .(p_label_4))
+    subtitle = bquote(r == .(r_4) * ", " * .(p_label_4))
   ) +
+  participant_color_scale +
   theme(
     panel.background = element_rect(fill = "white", color = NA),
     plot.background = element_rect(fill = "white", color = NA),
@@ -1073,7 +1055,7 @@ peak_Fr_reg_fig
 
 # --- Plot 6: Mean Strain Difference ---
 s6 <- summary(mean_strain_model)
-r2_6 <- formatC(s6$r.squared, digits = 3, format = "f")
+r_6 <- formatC(sign(coef(mean_strain_model)[2]) * sqrt(s6$r.squared), digits = 3, format = "f")
 p_6 <- s6$coefficients[2, 4]
 p_label_6 <- if (p_6 < 0.001) "p < 0.001" else paste0("p = ", formatC(p_6, digits = 3, format = "f"))
 
@@ -1089,8 +1071,9 @@ mean_strain_reg_fig <- ggplot(reg_data, aes(x = mean_strain_diff, y = k_lin, col
   labs(
     x = expression(paste(Delta, "Mean Strain (Heels - Flats) (", Delta, "%)")),
     y = (expression(paste(Delta, "Tendon Stiffness (", Delta, "%)"))),
-    subtitle = bquote(R^2 == .(r2_6) * ", " * .(p_label_6))
+    subtitle = bquote(r == .(r_6) * ", " * .(p_label_6))
   ) +
+  participant_color_scale +
   theme(
     panel.background = element_rect(fill = "white", color = NA),
     plot.background = element_rect(fill = "white", color = NA),
