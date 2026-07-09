@@ -465,10 +465,9 @@ top_row <- plot_grid(
 )
 
 bottom_row <- plot_grid(
-  NULL, stiffness_diff_fig, NULL,
-  labels = c("", "C", ""),
-  ncol = 3,
-  rel_widths = c(0.5, 1, 0.5)
+  stiffness_diff_fig, htd_steps_reg_fig,
+  labels = c("C", "D"),
+  ncol = 2
 )
 
 combined_stiffness_fig <- plot_grid(
@@ -904,7 +903,7 @@ htd_steps_reg_fig <- ggplot(reg_data, aes(x = htd_steps, y = k_lin, color = fact
   coord_cartesian(ylim = c(-25, 35)) +
   labs(
     x = "Steps in High Heels per Day",
-    y = (expression(paste(Delta, "Achilles Tendon Stiffness (", Delta, "%)"))),
+    y = (expression(paste(Delta, "Tendon Stiffness (", Delta, "%)"))),
     subtitle = bquote(r == .(r_2) * ", " * .(p_label_2))
   ) +
   participant_color_scale +
@@ -924,7 +923,8 @@ htd_steps_reg_fig <- ggplot(reg_data, aes(x = htd_steps, y = k_lin, color = fact
     axis.text.x = element_text(color = "black", size = 18, margin = margin(t=10)),
     axis.text.y = element_text(color = "black", size = 18, margin = margin(r=10)),
     legend.position = "none"
-  )
+  ) + 
+  ggtitle("+Steps in Heels = +Stiffness")
 htd_steps_reg_fig
 
 ggsave2("htd_steps_reg_fig.pdf", htd_steps_reg_fig, path = "/Users/andrewthornton/Documents/WCB2026/Figures")
