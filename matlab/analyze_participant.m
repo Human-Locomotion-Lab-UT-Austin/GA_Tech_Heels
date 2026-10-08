@@ -19,7 +19,7 @@ function results = analyze_participant(pid, day, cond, lin_k, rest_AtMA, CSA, Lo
 %
 % OUTPUT
 %   results - struct with fields:
-%       ParticipantID, E, mean_peak_Fmtu_EMA, mean_lin_strain_impulse,
+%       ParticipantID, E, mean_peak_Fmtu_EMA, mean_pushoff_GRF_EMA, mean_lin_strain_impulse,
 %       mean_peak_lin_strain, mean_lin_strain, mean_peak_Fr, mean_peak_Fmtu,
 %       mean_Fmtu, mean_peak_ank_mom, mean_ank_mom,
 %       mass, num_strides (diagnostics)
@@ -205,6 +205,26 @@ for i = 1:num_strides
 end
 mean_peak_Fmtu_EMA = mean(peak_Fmtu_EMA, 'omitnan');
 
+% EMA at the push-off (second) resultant GRF peak: the highest GRF peak in the
+% second half of each stance. The largest peak overall is used for peak GRF,
+% but it switches between the loading (~25% of stance) and push-off (~78%)
+% peaks across trials, so it does not mark a consistent event for EMA.
+pushoff_GRF_EMA = nan(1, num_strides);
+for i = 1:num_strides
+    idx1 = heelstrike_index(i);
+    idx2 = toeoff_index(i);
+    segment = filt_Fr(idx1:idx2);
+    [pks, locs] = findpeaks(segment, "MinPeakHeight", max(segment)/1.5);
+    late = locs > numel(segment) / 2;
+    if any(late)
+        late_pks = pks(late);
+        late_locs = locs(late);
+        [~, m] = max(late_pks);
+        pushoff_GRF_EMA(i) = EMA(late_locs(m) + idx1 - 1);
+    end
+end
+mean_pushoff_GRF_EMA = mean(pushoff_GRF_EMA, 'omitnan');
+
 %% Young's modulus at peak Fmtu
 stress = Fmtu / CSA; % N/mm^2
 
@@ -221,6 +241,7 @@ E = mean(peak_Fmtu_E, 'omitnan');
 results.ParticipantID = pid;
 results.E = E;
 results.mean_peak_Fmtu_EMA = mean_peak_Fmtu_EMA;
+results.mean_pushoff_GRF_EMA = mean_pushoff_GRF_EMA;
 results.mean_lin_strain_impulse = mean_lin_strain_impulse;
 results.mean_peak_lin_strain = mean_peak_lin_strain;
 results.mean_lin_strain = mean_lin_strain;

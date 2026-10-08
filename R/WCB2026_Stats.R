@@ -10,8 +10,9 @@
 # Research questions
 #   Q1. Did AT stiffness change from Pre to Post within each group, and did the
 #       change differ between Users and Nonusers?
-#   Q2. Did walking in heels change peak ground reaction force (GRF), peak AT
-#       strain, mean AT strain, and AT strain impulse relative to flats?
+#   Q2. Did walking in heels change peak ground reaction force (GRF), effective
+#       mechanical advantage (EMA), peak AT force, peak AT strain, mean AT
+#       strain, and AT strain impulse relative to flats?
 #   Q3. Did the change in AT stiffness scale with daily steps in heels
 #       (dose-response)?
 #
@@ -51,7 +52,8 @@
 #   output/figures/ (PDF):
 #   users_vs_nonusers_stiffness_fig.pdf, flats_vs_heels_kinetics_fig.pdf,
 #   users_vs_nonusers_steps_fig.pdf, flats_vs_heels_grf_ema_combined_fig.pdf,
-#   flats_vs_heels_strain_stance_fig.pdf, htd_steps_reg_fig.pdf,
+#   flats_vs_heels_strain_stance_fig.pdf, flats_vs_heels_stance_summary_fig.pdf,
+#   htd_steps_reg_fig.pdf,
 #   supp_peak_grf_reg_fig.pdf
 # =============================================================================
 
@@ -279,6 +281,8 @@ footwear_diff_by_time <- d |>
   transmute(
     ParticipantID, Time,
     peak_Fr_diff        = (heels_peak_Fr - flats_peak_Fr) / (Mass * g),  # body weights (BW)
+    EMA_pushoff_diff    = heels_EMA_pushoff - flats_EMA_pushoff,         # EMA at push-off GRF peak
+    peak_Fmtu_diff      = (heels_peak_Fmtu - flats_peak_Fmtu) / (Mass * g), # BW
     peak_strain_diff    = heels_peak_strain - flats_peak_strain,         # % strain
     mean_strain_diff    = heels_mean_strain - flats_mean_strain,         # % strain
     strain_impulse_diff = heels_strain_impulse - flats_strain_impulse    # % strain * s
@@ -291,6 +295,8 @@ footwear_diff <- footwear_diff_by_time |>
   summarize(across(ends_with("_diff"), ~ mean(.x, na.rm = TRUE)))
 
 peak_GRF_test       <- sign_flip_test(footwear_diff$peak_Fr_diff)
+EMA_test            <- sign_flip_test(footwear_diff$EMA_pushoff_diff)
+peak_Fmtu_test      <- sign_flip_test(footwear_diff$peak_Fmtu_diff)
 strain_impulse_test <- sign_flip_test(footwear_diff$strain_impulse_diff)
 peak_strain_test    <- sign_flip_test(footwear_diff$peak_strain_diff)
 mean_strain_test    <- sign_flip_test(footwear_diff$mean_strain_diff)
@@ -308,14 +314,16 @@ print(footwear_by_time, width = Inf)
 
 # 7. Summary of permutation tests ----------------------------------------------
 
-# obs_diff units: % change for stiffness (Pre to Post); BW, % strain,
-# and % strain * s for the heels - flats comparisons. ci_low / ci_high give the
+# obs_diff units: % change for stiffness (Pre to Post); BW (GRF, AT force),
+# unitless (EMA), % strain, and % strain * s for the heels - flats comparisons. ci_low / ci_high give the
 # 95% CI for obs_diff. role marks which P values are used for inference.
 perm_results <- list(
   "Stiffness change, Users - Nonusers" = stiffness_group_test,
   "Stiffness change, Users"            = stiffness_user_test,
   "Stiffness change, Nonusers"         = stiffness_nonuser_test,
   "Peak GRF, heels - flats"            = peak_GRF_test,
+  "EMA at push-off GRF peak, heels - flats" = EMA_test,
+  "Peak AT force, heels - flats"       = peak_Fmtu_test,
   "Strain impulse, heels - flats"      = strain_impulse_test,
   "Peak strain, heels - flats"         = peak_strain_test,
   "Mean strain, heels - flats"         = mean_strain_test
@@ -711,7 +719,7 @@ participant_curves <- stance_curves |>
   semi_join(valid_visits, by = c("ParticipantID", "Visit")) |>
   filter(Visit %in% stance_visits) |>
   group_by(ParticipantID, Condition, stance_pct) |>
-  summarize(across(c(strain_mean, grf_bw, r_internal, R_external), mean), .groups = "drop")
+  summarize(across(c(strain_mean, grf_bw, fmtu_bw, r_internal, R_external), mean), .groups = "drop")
 
 
 # 15. Figure: GRF and EMA over stance -------------------------------------------
@@ -825,3 +833,87 @@ strain_stance_fig <- ggplot(strain_curves, aes(x = stance_pct, y = avg_lin_strai
   )
 strain_stance_fig
 save_fig(strain_stance_fig, "flats_vs_heels_strain_stance_fig.pdf", width = 12.32, height = 7.03)
+
+
+# 17. Figure: stance time series with heels vs flats summaries -------------------
+
+# Four rows: GRF, EMA, AT force and AT strain. Left column: mean time series over
+# stance across participants (participant_curves, section 14), heels vs flats.
+# Right column: heels vs flats box plot of the matching per-trial summary value
+# with its Q2 test P value. The box plots have the same figure-vs-test caveat as
+# section 12: boxes pool every participant-visit, while the tests use one value
+# per participant. Forces are in body weights (BW).
+#
+# EMA: the time series is mean r / mean R, shown only where it is defined
+# (section 15). The box plot is EMA at the push-off (second) GRF peak, the
+# highest GRF peak in the second half of each stance (~78% of stance). The
+# largest GRF peak is not used because it is the loading peak (~25%) in most
+# trials but the push-off peak in others, so it is not a consistent event.
+stance_means <- participant_curves |>
+  group_by(Condition, stance_pct) |>
+  summarize(grf = mean(grf_bw), fmtu = mean(fmtu_bw), strain = mean(strain_mean),
+            .groups = "drop") |>
+  left_join(select(grf_ema_curves, Condition, stance_pct, ema),
+            by = c("Condition", "stance_pct"))
+
+# Smaller text so eight panels fit on one figure
+theme_summary_grid <- theme(
+  plot.title    = element_text(size = 18),
+  plot.subtitle = element_text(size = 13),
+  axis.title.x  = element_text(size = 14, margin = margin(t = 6)),
+  axis.title.y  = element_text(size = 14, margin = margin(r = 6)),
+  axis.text     = element_text(size = 12, color = "black"),
+  legend.text   = element_text(size = 13)
+)
+
+# Mean time series over stance, heels vs flats. The legend is drawn in one panel
+# only, and the x-axis title on the bottom row only.
+stance_panel <- function(y, title, y_label, show_legend = FALSE, show_x_title = FALSE) {
+  ggplot(stance_means, aes(x = stance_pct, y = {{ y }}, color = Condition)) +
+    stance_events +
+    geom_line(linewidth = 1.2, na.rm = TRUE) +
+    stance_x_scale +
+    scale_color_manual(name = NULL, values = c("FLAT" = "black", "HEEL" = col_dark),
+                       labels = c("FLAT" = "Flats", "HEEL" = "Heels")) +
+    labs(title = title, y = y_label) +
+    theme_wcb() +
+    theme_summary_grid +
+    theme(
+      axis.title.x           = if (show_x_title) element_text(size = 14) else element_blank(),
+      legend.position        = if (show_legend) "inside" else "none",
+      legend.position.inside = c(0.02, 0.98),
+      legend.justification   = c("left", "top"),
+      legend.background      = element_rect(fill = "white", color = "black", linewidth = 0.4),
+      legend.key             = element_rect(fill = "white", color = NA),
+      plot.margin            = margin(t = 5, r = 25, b = 5, l = 5) # room for "Toe-off"
+    )
+}
+
+# y limits padded 8% beyond the data range, so no point is hidden
+padded_limits <- function(x) {
+  r <- range(x, na.rm = TRUE)
+  r + c(-1, 1) * 0.08 * diff(r)
+}
+
+summary_box_panel <- function(y, title, test, y_label) {
+  paired_box_fig(heels_flats_comp, {{ y }}, interaction(ParticipantID, Time),
+                 c("Flats", "Heels"), title, format_p(test$p_val), y_label,
+                 padded_limits(pull(heels_flats_comp, {{ y }}))) +
+    theme_summary_grid +
+    theme(axis.title.x = element_blank())
+}
+
+stance_summary_fig <- plot_grid(
+  stance_panel(grf, "Ground Reaction Force", "GRF (BW)", show_legend = TRUE),
+  summary_box_panel(peak_Fr, "Peak GRF", peak_GRF_test, "Peak GRF (BW)"),
+  stance_panel(ema, "Effective Mechanical Advantage", "EMA (r/R)"),
+  summary_box_panel(EMA_pushoff, "EMA at Push-off GRF Peak", EMA_test, "EMA (r/R)"),
+  stance_panel(fmtu, "Achilles Tendon Force", "AT Force (BW)"),
+  summary_box_panel(peak_Fmtu, "Peak AT Force", peak_Fmtu_test, "Peak AT Force (BW)"),
+  stance_panel(strain, "Achilles Tendon Strain", "AT Strain (%)", show_x_title = TRUE),
+  summary_box_panel(peak_strain, "Peak Strain", peak_strain_test, "Peak AT Strain (%)"),
+  ncol = 2, rel_widths = c(1.6, 1), align = "hv", axis = "tblr",
+  labels = LETTERS[1:8], label_size = 16
+)
+stance_summary_fig
+save_fig(stance_summary_fig, "flats_vs_heels_stance_summary_fig.pdf", width = 12, height = 16)

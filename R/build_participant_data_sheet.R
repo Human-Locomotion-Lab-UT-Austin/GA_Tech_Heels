@@ -32,11 +32,12 @@ processed_dir <- file.path(repo_dir, "data", "processed")
 analysis_dir  <- file.path(repo_dir, "data", "analysis")
 sheet_file    <- file.path(analysis_dir, "participant_data_sheet_R.csv")
 comp_file     <- file.path(analysis_dir, "heels_flats_comp.csv")
-g <- 9.81 # m/s^2, converts mass to body weight for peak GRF in heels_flats_comp
+g <- 9.81 # m/s^2, converts mass to body weight for the forces in heels_flats_comp
 
 # Data sheet variable (after the heels_ / flats_ prefix) <- batch file column
 batch_columns <- c(
   EMA            = "mean_peak_Fmtu_EMA",      # EMA at peak AT force
+  EMA_pushoff    = "mean_pushoff_GRF_EMA",    # EMA at the push-off (second) GRF peak
   strain_impulse = "mean_lin_strain_impulse", # % strain * s
   peak_strain    = "mean_peak_lin_strain",    # %
   mean_strain    = "mean_lin_strain",         # %
@@ -88,25 +89,35 @@ footwear_wide <- batch_long |>
   select(ParticipantID, Time, column, value) |>
   pivot_wider(names_from = column, values_from = value)
 
-footwear_cols <- names(old_sheet)[str_detect(names(old_sheet), "^(heels|flats)_")]
-stopifnot(setequal(footwear_cols, setdiff(names(footwear_wide), c("ParticipantID", "Time"))))
+# Heels / flats columns: all flats variables, then all heels variables, in the
+# order of batch_columns. Columns in batch_columns that the old sheet lacks are
+# added; heels / flats columns in the old sheet that are not in batch_columns
+# are dropped (both are listed below).
+footwear_cols     <- paste(rep(c("flats", "heels"), each = length(batch_columns)),
+                           names(batch_columns), sep = "_")
+old_footwear_cols <- names(old_sheet)[str_detect(names(old_sheet), "^(heels|flats)_")]
+added_cols   <- setdiff(footwear_cols, old_footwear_cols)
+dropped_cols <- setdiff(old_footwear_cols, footwear_cols)
+if (length(added_cols) > 0)   cat("Added columns:", added_cols, "\n")
+if (length(dropped_cols) > 0) cat("Dropped columns:", dropped_cols, "\n")
 
 new_sheet <- old_sheet |>
-  select(-all_of(footwear_cols)) |>
+  select(-all_of(old_footwear_cols)) |>
   left_join(footwear_wide, by = c("ParticipantID", "Time")) |>
-  select(all_of(names(old_sheet))) # keep the original column order
+  select(all_of(setdiff(names(old_sheet), old_footwear_cols)), all_of(footwear_cols))
 
 stopifnot(nrow(new_sheet) == nrow(old_sheet),
           identical(new_sheet$ParticipantID, old_sheet$ParticipantID),
           identical(new_sheet$Time, old_sheet$Time))
 
 
-# 3. Report changes -------------------------------------------------------------
+# 3. Report changes to existing values ------------------------------------------
 
+compared_cols <- intersect(footwear_cols, old_footwear_cols)
 changes <- list(old = old_sheet, new = new_sheet) |>
   map(~ .x |>
-        select(ParticipantID, Time, all_of(footwear_cols)) |>
-        pivot_longer(all_of(footwear_cols), names_to = "column")) |>
+        select(ParticipantID, Time, all_of(compared_cols)) |>
+        pivot_longer(all_of(compared_cols), names_to = "column")) |>
   reduce(full_join, by = c("ParticipantID", "Time", "column"), suffix = c("_old", "_new")) |>
   filter(xor(is.na(value_old), is.na(value_new)) |
            abs(value_new - value_old) > 1e-9 * pmax(1, abs(value_old))) |>
@@ -127,16 +138,17 @@ cat("Wrote", sheet_file, "\nBackup of the previous sheet:", backup_file, "\n")
 # 5. Regenerate heels_flats_comp.csv ---------------------------------------------
 
 # One row per participant x condition x visit, in data sheet row order with
-# flats before heels; peak GRF expressed in body weights. This reproduces the
-# previous heels_flats_comp.csv exactly when run on the previous sheet.
-comp_vars <- c("EMA", "strain_impulse", "peak_strain", "mean_strain", "peak_Fr")
+# flats before heels; peak GRF and peak AT force expressed in body weights.
+comp_vars <- c("EMA", "EMA_pushoff", "strain_impulse", "peak_strain", "mean_strain",
+               "peak_Fr", "peak_Fmtu")
 
 heels_flats_comp <- new_sheet |>
   select(ParticipantID, Time, Mass, matches(sprintf("^(heels|flats)_(%s)$", paste(comp_vars, collapse = "|")))) |>
   pivot_longer(matches("^(heels|flats)_"), names_to = c("Condition", ".value"),
                names_pattern = "(heels|flats)_(.*)") |>
   mutate(Condition = if_else(Condition == "heels", "Heels", "Flats"),
-         peak_Fr   = peak_Fr / (Mass * g)) |>
+         peak_Fr   = peak_Fr / (Mass * g),
+         peak_Fmtu = peak_Fmtu / (Mass * g)) |>
   arrange(match(paste(ParticipantID, Time), paste(new_sheet$ParticipantID, new_sheet$Time)),
           Condition) |>
   select(ParticipantID, Condition, Time, all_of(comp_vars))

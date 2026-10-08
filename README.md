@@ -30,8 +30,9 @@ The statistics address three questions:
 
 1. Did AT stiffness change from Pre to Post, and did the change differ
    between Users and Nonusers?
-2. Did walking in heels change peak ground reaction force (GRF) and AT
-   strain compared with flats?
+2. Did walking in heels change peak ground reaction force (GRF), ankle
+   effective mechanical advantage (EMA), AT force and AT strain compared with
+   flats?
 3. Did the change in stiffness scale with daily steps in heels
    (dose-response)?
 

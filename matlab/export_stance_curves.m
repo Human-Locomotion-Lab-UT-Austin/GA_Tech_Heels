@@ -2,7 +2,8 @@ function curve = export_stance_curves(pid, day, cond, lin_k, rest_AtMA, Lo, ...
                                       MECH_Data, JointMomentData, JointAngleData)
 % EXPORT_STANCE_CURVES  Mean stance-phase time series for one participant,
 % visit and footwear condition: Achilles tendon linear strain (%), resultant
-% GRF (body weights), and the parts of effective mechanical advantage (EMA).
+% GRF and AT force (body weights), and the parts of effective mechanical
+% advantage (EMA).
 %
 %   curve = export_stance_curves(pid, day, cond, lin_k, rest_AtMA, Lo, ...
 %                                MECH_Data, JointMomentData, JointAngleData)
@@ -28,6 +29,7 @@ function curve = export_stance_curves(pid, day, cond, lin_k, rest_AtMA, Lo, ...
 %     stance_pct     0-100% of stance
 %     strain_mean    AT linear strain (%), and strain_sd (SD across stances)
 %     grf_bw         resultant GRF / body weight
+%     fmtu_bw        AT (muscle-tendon unit) force / body weight
 %     r_internal     AT (internal) moment arm (m)
 %     R_external     GRF (external) moment arm = ankle moment / resultant GRF (m)
 %     ema_median     median across stances of r_internal / R_external
@@ -129,6 +131,7 @@ lin_strain = (Fmtu / lin_k) / Lo * 100; % percent
 stance_pct = (0:100)';
 strain_s = nan(101, num_strides);
 grf_s    = nan(101, num_strides);
+fmtu_s   = nan(101, num_strides);
 r_s      = nan(101, num_strides);
 R_s      = nan(101, num_strides);
 for i = 1:num_strides
@@ -136,6 +139,7 @@ for i = 1:num_strides
     pct = (idx - idx(1)) / (idx(end) - idx(1)) * 100;
     strain_s(:, i) = interp1(pct, lin_strain(idx), stance_pct);
     grf_s(:, i)    = interp1(pct, filt_Fr(idx) / body_weight, stance_pct);
+    fmtu_s(:, i)   = interp1(pct, Fmtu(idx) / body_weight, stance_pct);
     r_s(:, i)      = interp1(pct, internal_moment_arms(idx), stance_pct);
     R_s(:, i)      = interp1(pct, external_moment_arm(idx), stance_pct);
 end
@@ -144,6 +148,7 @@ curve.stance_pct  = stance_pct;
 curve.strain_mean = mean(strain_s, 2, 'omitnan');
 curve.strain_sd   = std(strain_s, 0, 2, 'omitnan');
 curve.grf_bw      = mean(grf_s, 2, 'omitnan');
+curve.fmtu_bw     = mean(fmtu_s, 2, 'omitnan');
 curve.r_internal  = mean(r_s, 2, 'omitnan');
 curve.R_external  = mean(R_s, 2, 'omitnan');
 curve.ema_median  = median(r_s ./ R_s, 2, 'omitnan');
