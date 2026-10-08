@@ -40,15 +40,15 @@
 #     difference in peak GRF averaged across visits, reported as r with a 95% CI.
 #
 # Inputs
-#   participant_data_sheet_R.csv  one row per participant x timepoint (GitHub)
-#   heels_flats_comp.csv          long format footwear comparison (GitHub)
-#   stance_curves.csv             mean AT strain, resultant GRF and EMA moment
-#                                 arms over stance for each participant, visit
-#                                 and condition (from run_batch_stance_curves.m)
+#   data/analysis/participant_data_sheet_R.csv  one row per participant x timepoint
+#   data/analysis/heels_flats_comp.csv          long format footwear comparison
+#   data/processed/stance_curves.csv            mean AT strain, resultant GRF and EMA moment
+#                                               arms over stance for each participant,
+#                                               visit and condition (run_batch_stance_curves.m)
 #
 # Outputs
-#   baseline_characteristics.csv (written to table_dir)
-#   Figures (PDF, written to fig_dir):
+#   output/tables/baseline_characteristics.csv
+#   output/figures/ (PDF):
 #   users_vs_nonusers_stiffness_fig.pdf, flats_vs_heels_kinetics_fig.pdf,
 #   users_vs_nonusers_steps_fig.pdf, flats_vs_heels_grf_ema_combined_fig.pdf,
 #   flats_vs_heels_strain_stance_fig.pdf, htd_steps_reg_fig.pdf,
@@ -68,13 +68,18 @@ n_perm    <- 10000 # random resamples per test when exact enumeration is too lar
 max_exact <- 1e5   # largest null distribution that is enumerated exactly
 tol       <- sqrt(.Machine$double.eps) # tolerance when comparing permuted and observed means
 
-proj_dir <- "/Users/andrewthornton/Documents/WCB2026"
-data_dir <- file.path(proj_dir, "Data")
-fig_dir  <- file.path(proj_dir, "Figures")
-table_dir <- file.path(proj_dir, "Tables")
-dir.create(table_dir, showWarnings = FALSE)
-
-github_dir <- "https://raw.githubusercontent.com/Human-Locomotion-Lab-UT-Austin/GA_Tech_Heels/refs/heads/main"
+# Paths are relative to the repository root. Open GA_Tech_Heels.Rproj in
+# RStudio, or run `Rscript R/WCB2026_Stats.R` from the repository root.
+repo_dir <- "."
+if (!dir.exists(file.path(repo_dir, "data", "analysis"))) {
+  stop("Run this script from the repository root (e.g. open GA_Tech_Heels.Rproj).")
+}
+analysis_dir  <- file.path(repo_dir, "data", "analysis")
+processed_dir <- file.path(repo_dir, "data", "processed")
+fig_dir       <- file.path(repo_dir, "output", "figures")
+table_dir     <- file.path(repo_dir, "output", "tables")
+dir.create(fig_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(table_dir, recursive = TRUE, showWarnings = FALSE)
 
 g <- 9.81 # gravitational acceleration (m/s^2), converts mass to body weight
 
@@ -83,17 +88,17 @@ g <- 9.81 # gravitational acceleration (m/s^2), converts mass to body weight
 
 # One row per participant x timepoint (Pre/Post), with flats and heels outcomes
 # in separate columns
-d <- read_csv(file.path(github_dir, "participant_data_sheet_R.csv"), show_col_types = FALSE)
+d <- read_csv(file.path(analysis_dir, "participant_data_sheet_R.csv"), show_col_types = FALSE)
 
 # Long format footwear comparison (participant x timepoint x condition), used
 # for the heels vs flats figures
-heels_flats_comp <- read_csv(file.path(github_dir, "heels_flats_comp.csv"), show_col_types = FALSE)
+heels_flats_comp <- read_csv(file.path(analysis_dir, "heels_flats_comp.csv"), show_col_types = FALSE)
 
 # Mean stance-phase time series (0 = heel strike, 100 = toe-off, 101 points)
 # for each participant x visit x condition, averaged over every stance in the
 # trial: AT strain (%), resultant GRF (BW), and internal (r) and external (R)
 # moment arms for EMA
-stance_curves <- read_csv(file.path(data_dir, "stance_curves.csv"), show_col_types = FALSE)
+stance_curves <- read_csv(file.path(processed_dir, "stance_curves.csv"), show_col_types = FALSE)
 
 
 # 3. Statistical helper functions ---------------------------------------------
@@ -399,6 +404,14 @@ theme_wcb <- function() {
 # Box plot of two paired conditions with each participant's values joined by a
 # line. data needs box_x (1.5 / 2.5, box centers) and x_num (1.7 / 2.3, points)
 paired_box_fig <- function(data, y, line_group, x_labels, title, subtitle, y_label, y_limits) {
+  # ylim() silently drops values outside the limits (and changes the box
+  # statistics), so stop if any data point would be hidden
+  y_values <- pull(data, {{ y }})
+  if (any(y_values < y_limits[1] | y_values > y_limits[2], na.rm = TRUE)) {
+    stop(sprintf("%s: data range %.2f to %.2f is outside y_limits %.2f to %.2f",
+                 title, min(y_values, na.rm = TRUE), max(y_values, na.rm = TRUE),
+                 y_limits[1], y_limits[2]))
+  }
   ggplot(data, aes(x = box_x, y = {{ y }})) +
     geom_boxplot(aes(group = box_x, fill = factor(box_x)), width = 0.18, color = "black",
                  linewidth = 0.5, whisker.linewidth = 0.5, staplewidth = 0.5) +
@@ -593,7 +606,7 @@ peak_forces_fig    <- footwear_fig(peak_Fr, "Peak GRFs", peak_GRF_test,
 peak_strain_fig    <- footwear_fig(peak_strain, "Peak Strain", peak_strain_test,
                                    "Peak Tendon Strain (%)", c(2.5, 10))
 mean_strain_fig    <- footwear_fig(mean_strain, "Mean Strain", mean_strain_test,
-                                   "Mean Tendon Strain (%)", c(0.8, 3))
+                                   "Mean Tendon Strain (%)", c(1, 4.5))
 strain_impulse_fig <- footwear_fig(strain_impulse, "Strain Impulse", strain_impulse_test,
                                    "Tendon Strain Impulse (% · s)", c(0.8, 3.1))
 

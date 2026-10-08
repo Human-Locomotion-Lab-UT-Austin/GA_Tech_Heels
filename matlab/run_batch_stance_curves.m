@@ -2,30 +2,36 @@
 % Runs export_stance_curves.m for both visits (Pre = DayA_01 with the Day1
 % parameters, Post = DayA_03 with the Day3 parameters) and both footwear
 % conditions, and writes one long-format CSV (AT strain, resultant GRF and EMA
-% over stance) that WCB2026_Stats.R averages across participants.
+% over stance) that WCB2026_Stats.R averages across participants:
+%
+%   data/processed/stance_curves.csv
+%
+% Run from anywhere: paths are set relative to this file's location in the
+% repository. The raw .mat files must be in data/raw (see README.md).
 
-%% --- EDIT THESE PATHS ---
-data_dir = "/Users/andrewthornton/Documents/WCB2026/Data";
-out_file = fullfile(data_dir, "stance_curves.csv");
-% -------------------------
+%% Paths (relative to the repository root)
+repo_dir      = fileparts(fileparts(mfilename('fullpath')));
+raw_dir       = fullfile(repo_dir, "data", "raw");
+params_dir    = fullfile(repo_dir, "data", "params");
+processed_dir = fullfile(repo_dir, "data", "processed");
+if ~exist(processed_dir, 'dir'), mkdir(processed_dir); end
+out_file = fullfile(processed_dir, "stance_curves.csv");
 
 %% Load the master data files
-MECH_Data        = importdata(fullfile(data_dir, "MECH_Data.mat"));
-JointMomentData  = importdata(fullfile(data_dir, "JointMomentData.mat"));
-JointAngleData   = importdata(fullfile(data_dir, "JointAngleData.mat"));
+MECH_Data        = importdata(fullfile(raw_dir, "MECH_Data.mat"));
+JointMomentData  = importdata(fullfile(raw_dir, "JointMomentData.mat"));
+JointAngleData   = importdata(fullfile(raw_dir, "JointAngleData.mat"));
 
-% Visit label in the data structs, matching parameter file, and name used in R.
-% Heels and flats parameter files are identical within a visit, so the heels
-% file is used for both conditions.
+% Visit label in the data structs, matching parameter file, and name used in R
 visits = struct( ...
     'day',        {'DayA_01', 'DayA_03'}, ...
-    'param_file', {"participant_params_heels_Day1.csv", "participant_params_heels_Day3.csv"}, ...
+    'param_file', {"participant_params_Day1.csv", "participant_params_Day3.csv"}, ...
     'label',      {"Pre", "Post"});
 conditions = ["HEEL", "FLAT"];
 
 rows = {};
 for v = 1:numel(visits)
-    params = readtable(fullfile(data_dir, visits(v).param_file), 'TextType', 'string');
+    params = readtable(fullfile(params_dir, visits(v).param_file), 'TextType', 'string');
     for c = conditions
         for k = 1:height(params)
             pid = params.ParticipantID(k);

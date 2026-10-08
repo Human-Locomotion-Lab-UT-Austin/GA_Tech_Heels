@@ -1,0 +1,7 @@
+PLACEHOLDER: license to be decided before the project is finished.
+
+Until a license is added, all rights are reserved by the authors.
+
+A common choice for research repositories is MIT (or BSD-3-Clause) for the
+code in matlab/ and R/, and CC BY 4.0 for the data in data/ and the poster in
+docs/. Replace this file with the chosen license text(s).

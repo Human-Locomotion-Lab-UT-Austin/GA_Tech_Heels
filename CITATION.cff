@@ -1,0 +1,43 @@
+cff-version: 1.2.0
+message: "If you use this code or data, please cite the WCB 2026 poster below."
+# PLACEHOLDER: update the title, date, DOI and preferred citation when the
+# project is finished (e.g. replace with the published paper).
+title: "Why Does Wearing High Heeled Footwear Stiffen the Achilles Tendon? Code and data"
+type: software
+authors:
+  - family-names: Thornton
+    given-names: Andrew M.
+    affiliation: "Department of Kinesiology and Health Education, The University of Texas at Austin"
+    email: amt4782@my.utexas.edu
+  - family-names: Schroeder
+    given-names: Jordyn N.
+    affiliation: "Woodruff School of Mechanical Engineering, Georgia Institute of Technology"
+  - family-names: Sawicki
+    given-names: Gregory S.
+    affiliation: "Woodruff School of Mechanical Engineering and School of Biological Sciences, Georgia Institute of Technology"
+  - family-names: Beck
+    given-names: Owen N.
+    affiliation: "Department of Kinesiology and Health Education, The University of Texas at Austin"
+repository-code: "https://github.com/Human-Locomotion-Lab-UT-Austin/GA_Tech_Heels"
+keywords:
+  - Achilles tendon
+  - tendon stiffness
+  - high heels
+  - biomechanics
+  - walking
+preferred-citation:
+  type: conference-paper
+  title: "Why Does Wearing High Heeled Footwear Stiffen the Achilles Tendon?"
+  authors:
+    - family-names: Thornton
+      given-names: Andrew M.
+    - family-names: Schroeder
+      given-names: Jordyn N.
+    - family-names: Sawicki
+      given-names: Gregory S.
+    - family-names: Beck
+      given-names: Owen N.
+  conference:
+    name: "World Congress of Biomechanics 2026"
+  year: 2026
+  notes: "Poster P2-212"

@@ -7,8 +7,8 @@
 # run. Also regenerates heels_flats_comp.csv (the long-format copy used for the
 # heels vs flats figures) from the rebuilt sheet.
 #
-#   batch_results_{heels,flats}_Day1.csv -> Time == "Pre"
-#   batch_results_{heels,flats}_Day3.csv -> Time == "Post"
+#   data/processed/batch_results_{heels,flats}_Day1.csv -> Time == "Pre"
+#   data/processed/batch_results_{heels,flats}_Day3.csv -> Time == "Post"
 #
 # All other columns (group, step counts, anthropometrics, k_lin, ATLength,
 # CSA, ...) are kept from the existing data sheet unchanged.
@@ -17,15 +17,21 @@
 # heels / flats variable (see `exclusions` below).
 #
 # Existing files are copied to dated backups before they are overwritten, and
-# a report of every changed value is printed. After checking the report, push
-# both updated files to the GitHub repository that WCB2026_Stats.R reads from.
+# a report of every changed value is printed (backups are not tracked by git).
 # =============================================================================
 
 library(tidyverse)
 
-data_dir   <- "/Users/andrewthornton/Documents/WCB2026/Data"
-sheet_file <- file.path(data_dir, "participant_data_sheet_R.csv")
-comp_file  <- file.path(data_dir, "heels_flats_comp.csv")
+# Paths are relative to the repository root. Open GA_Tech_Heels.Rproj in
+# RStudio, or run `Rscript R/build_participant_data_sheet.R` from the repository root.
+repo_dir <- "."
+if (!dir.exists(file.path(repo_dir, "data", "analysis"))) {
+  stop("Run this script from the repository root (e.g. open GA_Tech_Heels.Rproj).")
+}
+processed_dir <- file.path(repo_dir, "data", "processed")
+analysis_dir  <- file.path(repo_dir, "data", "analysis")
+sheet_file    <- file.path(analysis_dir, "participant_data_sheet_R.csv")
+comp_file     <- file.path(analysis_dir, "heels_flats_comp.csv")
 g <- 9.81 # m/s^2, converts mass to body weight for peak GRF in heels_flats_comp
 
 # Data sheet variable (after the heels_ / flats_ prefix) <- batch file column
@@ -51,7 +57,7 @@ exclusions <- tribble(
 # 1. Read the batch files -------------------------------------------------------
 
 batch_files <- expand_grid(condition = c("heels", "flats"), Time = c("Pre", "Post")) |>
-  mutate(file = file.path(data_dir, sprintf("batch_results_%s_%s.csv", condition,
+  mutate(file = file.path(processed_dir, sprintf("batch_results_%s_%s.csv", condition,
                                             if_else(Time == "Pre", "Day1", "Day3"))))
 
 batch_long <- batch_files |>
@@ -112,7 +118,7 @@ print(changes, n = Inf, width = Inf)
 
 # 4. Back up the old sheet and write the new one --------------------------------
 
-backup_file <- file.path(data_dir, sprintf("participant_data_sheet_R_backup_%s.csv", Sys.Date()))
+backup_file <- file.path(analysis_dir, sprintf("participant_data_sheet_R_backup_%s.csv", Sys.Date()))
 if (!file.exists(backup_file)) invisible(file.copy(sheet_file, backup_file))
 write_csv(new_sheet, sheet_file, na = "NA")
 cat("Wrote", sheet_file, "\nBackup of the previous sheet:", backup_file, "\n")
@@ -136,7 +142,7 @@ heels_flats_comp <- new_sheet |>
   select(ParticipantID, Condition, Time, all_of(comp_vars))
 
 if (file.exists(comp_file)) {
-  comp_backup <- file.path(data_dir, sprintf("heels_flats_comp_backup_%s.csv", Sys.Date()))
+  comp_backup <- file.path(analysis_dir, sprintf("heels_flats_comp_backup_%s.csv", Sys.Date()))
   if (!file.exists(comp_backup)) invisible(file.copy(comp_file, comp_backup))
 }
 write_csv(heels_flats_comp, comp_file, na = "")

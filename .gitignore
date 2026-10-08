@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+
+# MATLAB autosave and editor files
+*.asv
+*.m~
+
+# R / RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+Rplots.pdf
+
+# Raw data: too large for GitHub, downloaded from the data archive (see README)
+data/raw/*
+!data/raw/README.md
+
+# Generated output: recreate with R/WCB2026_Stats.R
+output/
+
+# Backups written by R/build_participant_data_sheet.R
+*_backup_*.csv

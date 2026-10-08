@@ -1,33 +1,33 @@
-function results = analyze_participant(pid, lin_k, rest_AtMA, CSA, Lo, ...
+function results = analyze_participant(pid, day, cond, lin_k, rest_AtMA, CSA, Lo, ...
                                          MECH_Data, JointMomentData, JointAngleData)
-% ANALYZE_PARTICIPANT  Run the GRF / Achilles tendon pipeline for one participant.
+% ANALYZE_PARTICIPANT  Run the GRF / Achilles tendon pipeline for one
+% participant, visit and footwear condition (treadmill walking at 1.3 m/s).
 %
-%   results = analyze_participant(pid, lin_k, rest_AtMA, CSA, Lo, ...
-%                                  MECH_Data, JointMomentData, JointAngleData, speed)
+%   results = analyze_participant(pid, day, cond, lin_k, rest_AtMA, CSA, Lo, ...
+%                                  MECH_Data, JointMomentData, JointAngleData)
 %
 % INPUTS
-%   pid     - participant field name as it appears in the data structs, e.g. "SS11"
-%   lin_k   - linear tendon stiffness (N/mm)
+%   pid       - participant field name as it appears in the data structs, e.g. "SS11"
+%   day       - visit label in the data structs: 'DayA_01' (Pre) or 'DayA_03' (Post)
+%   cond      - footwear condition: 'HEEL' or 'FLAT'
+%   lin_k     - linear tendon stiffness for that visit (N/mm)
 %   rest_AtMA - resting Achilles tendon moment arm (m)
-%   CSA     - tendon CSA (mm^2)
-%   Lo      - tendon slack length (mm)
+%   CSA       - tendon CSA (mm^2)
+%   Lo        - tendon slack length (mm)
 %   MECH_Data, JointMomentData, JointAngleData - the three loaded .mat structs
-%             (each one contains ALL participants as top-level fields)
+%               (each one contains ALL participants as top-level fields)
 %
 % OUTPUT
 %   results - struct with fields:
 %       ParticipantID, E, mean_peak_Fmtu_EMA, mean_lin_strain_impulse,
-%       mean_peak_lin_strain, mean_lin_strain, mean_peak_Fr,
+%       mean_peak_lin_strain, mean_lin_strain, mean_peak_Fr, mean_peak_Fmtu,
+%       mean_Fmtu, mean_peak_ank_mom, mean_ank_mom,
 %       mass, num_strides (diagnostics)
 
-speed = 1.3; % m/s
-
-pid = char(pid); % allow string or char input for dynamic field access
-
-% --- Trial labels: identical for every participant ---
-day   = 'DayA_03';
-cond  = 'FLAT';
-trial = 'S13';
+pid  = char(pid); % allow string or char input for dynamic field access
+day  = char(day);
+cond = char(cond);
+trial = 'S13';    % 1.3 m/s treadmill trial
 
 fs = 1000;        % Hz, GRF sampling frequency
 fn = fs/2;        % Nyquist frequency
@@ -125,7 +125,7 @@ for i = 1:num_strides
     end
 end
 mean_peak_ank_mom = mean(peak_ank_mom);
-mean_ank_mom = mean(nonzeros(norm_ank_mom));
+mean_ank_mom = stance_mean(norm_ank_mom, heelstrike_index, toeoff_index); % Nm/kg, stance only
 
 %% External (GRF) moment arm, computed during stance only
 external_moment_arm = zeros(n, 1);
@@ -164,7 +164,7 @@ for i = 1:num_strides
     end
 end
 mean_peak_Fmtu = mean(peak_Fmtu);
-mean_Fmtu = mean(nonzeros(Fmtu));
+mean_Fmtu = stance_mean(Fmtu, heelstrike_index, toeoff_index); % N, stance only
 
 
 %% Strain (linear stiffness)
@@ -182,8 +182,10 @@ for i = 1:num_strides
     end
 end
 mean_peak_lin_strain = mean(peak_lin_strain, 'omitnan');
-mean_lin_strain = mean(nonzeros(lin_strain));
+mean_lin_strain = stance_mean(lin_strain, heelstrike_index, toeoff_index); % %, stance only
 
+% Strain impulse: integral of strain from heel strike to toe-off of each
+% stance, averaged over stances
 lin_strain_impulse = nan(1, num_strides);
 for i = 1:num_strides
     idx1 = heelstrike_index(i);
@@ -231,4 +233,15 @@ results.mean_peak_ank_mom = mean_peak_ank_mom;
 results.mean_ank_mom = mean_ank_mom;
 
 
+end
+
+
+function m = stance_mean(signal, heelstrike_index, toeoff_index)
+% STANCE_MEAN  Mean of a signal within each stance (heel strike to toe-off),
+% averaged over stances, so swing-phase samples are excluded.
+stance_means = nan(1, numel(heelstrike_index));
+for i = 1:numel(heelstrike_index)
+    stance_means(i) = mean(signal(heelstrike_index(i):toeoff_index(i)));
+end
+m = mean(stance_means, 'omitnan');
 end
