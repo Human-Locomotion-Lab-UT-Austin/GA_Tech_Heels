@@ -382,7 +382,7 @@ print(reg_results, width = Inf)
 
 # 9. Figure styling -----------------------------------------------------------
 
-col_light <- "#FFCC99" # Pre / Flats / Nonusers
+col_light <- "#a9a9a9" # Pre / Flats / Nonusers
 col_dark  <- "#CC6600" # Post / Heels / Users
 
 # Okabe-Ito colorblind-safe palette, one fixed color per participant so each
@@ -813,7 +813,7 @@ strain_stance_fig <- ggplot(strain_curves, aes(x = stance_pct, y = avg_lin_strai
   geom_line(linewidth = 2) +
   labs(y = "Strain (%)", title = "Achilles Tendon Strain Over Stance") +
   stance_x_scale +
-  scale_color_manual(name = NULL, values = c("FLAT" = "black", "HEEL" = col_dark),
+  scale_color_manual(name = NULL, values = c("FLAT" = col_light, "HEEL" = col_dark),
                      labels = c("FLAT" = "Flats", "HEEL" = "Heels")) +
   theme_wcb() +
   theme(
@@ -873,7 +873,7 @@ stance_panel <- function(y, title, y_label, show_legend = FALSE, show_x_title = 
     stance_events +
     geom_line(linewidth = 1.2, na.rm = TRUE) +
     stance_x_scale +
-    scale_color_manual(name = NULL, values = c("FLAT" = "black", "HEEL" = col_dark),
+    scale_color_manual(name = NULL, values = c("FLAT" = col_light, "HEEL" = col_dark),
                        labels = c("FLAT" = "Flats", "HEEL" = "Heels")) +
     labs(title = title, y = y_label) +
     theme_wcb() +
