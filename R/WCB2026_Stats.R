@@ -382,7 +382,7 @@ print(reg_results, width = Inf)
 
 # 9. Figure styling -----------------------------------------------------------
 
-col_light <- "#FFCC99" # Pre / Flats / Nonusers
+col_light <- "#A9A9A9" # Pre / Flats / Nonusers
 col_dark  <- "#CC6600" # Post / Heels / Users
 
 # Okabe-Ito colorblind-safe palette, one fixed color per participant so each
@@ -704,15 +704,14 @@ valid_visits <- d |>
   select(ParticipantID, Visit = Time)
 
 # Shared x-axis for the stance figures. Stance runs from heel strike (0%) to
-# toe-off (100%); both events are marked with dashed lines and labeled below
-# the axis.
-stance_events <- geom_vline(xintercept = c(0, 100), linetype = "dashed",
-                            color = "grey50", linewidth = 0.5)
+# toe-off (100%); both events are labeled below the axis. The axis starts
+# exactly at heel strike, with no gap between 0% and the y-axis.
 stance_x_scale <- scale_x_continuous(
   name = "Stance (%)",
   breaks = seq(0, 100, by = 25),
   labels = c("0%\nHeel strike", "25%", "50%", "75%", "100%\nToe-off"),
-  expand = expansion(mult = c(0.02, 0.02))
+  limits = c(0, 100), # full stance even when a line (e.g. EMA) covers only part
+  expand = expansion(mult = c(0, 0.01))
 )
 
 participant_curves <- stance_curves |>
@@ -765,7 +764,6 @@ ema_scale     <- shared_ylim[2] / (1.05 * max(grf_ema_curves$ema, na.rm = TRUE))
 
 combined_grf_ema_fig <- grf_ema_curves |>
   ggplot(aes(x = stance_pct)) +
-  stance_events +
   geom_line(aes(y = grf_bw, color = GRF_series), linewidth = 2) +
   geom_line(aes(y = ema * ema_scale, color = EMA_series), linewidth = 2, na.rm = TRUE) +
   scale_y_continuous(
@@ -809,7 +807,6 @@ strain_curves <- participant_curves |>
 stopifnot(n_distinct(strain_curves$n) == 1) # same participants at every point and in both conditions
 
 strain_stance_fig <- ggplot(strain_curves, aes(x = stance_pct, y = avg_lin_strain, color = Condition)) +
-  stance_events +
   geom_line(linewidth = 2) +
   labs(y = "Strain (%)", title = "Achilles Tendon Strain Over Stance") +
   stance_x_scale +
@@ -844,17 +841,43 @@ save_fig(strain_stance_fig, "flats_vs_heels_strain_stance_fig.pdf", width = 12.3
 # section 12: boxes pool every participant-visit, while the tests use one value
 # per participant. Forces are in body weights (BW).
 #
-# EMA: the time series is mean r / mean R, shown only where it is defined
-# (section 15). The box plot is EMA at the push-off (second) GRF peak, the
+# EMA: the time series is mean r / mean R across participants at every point of
+# stance, drawn from where it first falls to ema_ymax (1.25) through toe-off.
+# Earlier in stance the ankle moment is near zero or dorsiflexor, so mean R
+# approaches or crosses zero and EMA rises without bound or turns negative
+# (section 15). The line starts at the interpolated point where EMA crosses
+# ema_ymax (flats ~19%, heels ~21% of stance). The box plot is EMA at the
+# push-off (second) GRF peak, the
 # highest GRF peak in the second half of each stance (~78% of stance). The
 # largest GRF peak is not used because it is the loading peak (~25%) in most
 # trials but the push-off peak in others, so it is not a consistent event.
+ema_ymax <- 1.25
+
+# Group EMA at every point, kept from the last point above ema_ymax (or
+# negative) onward, plus the interpolated crossing of ema_ymax
+ema_extended <- participant_curves |>
+  group_by(Condition, stance_pct) |>
+  summarize(ema = mean(r_internal) / mean(R_external), .groups = "drop") |>
+  group_by(Condition) |>
+  arrange(stance_pct, .by_group = TRUE) |>
+  group_modify(function(df, key) {
+    last_out <- max(df$stance_pct[df$ema > ema_ymax | df$ema < 0])
+    before   <- df[df$stance_pct == last_out, ]
+    after    <- df[df$stance_pct == last_out + 1, ]
+    crossing <- tibble(
+      stance_pct = before$stance_pct + (before$ema - ema_ymax) / (before$ema - after$ema),
+      ema        = ema_ymax
+    )
+    bind_rows(crossing, filter(df, stance_pct > last_out))
+  }) |>
+  ungroup()
+
 stance_means <- participant_curves |>
   group_by(Condition, stance_pct) |>
   summarize(grf = mean(grf_bw), fmtu = mean(fmtu_bw), strain = mean(strain_mean),
             .groups = "drop") |>
-  left_join(select(grf_ema_curves, Condition, stance_pct, ema),
-            by = c("Condition", "stance_pct"))
+  full_join(ema_extended, by = c("Condition", "stance_pct")) |>
+  arrange(Condition, stance_pct)
 
 # Smaller text so eight panels fit on one figure
 theme_summary_grid <- theme(
@@ -868,11 +891,14 @@ theme_summary_grid <- theme(
 
 # Mean time series over stance, heels vs flats. The legend is drawn in one panel
 # only, and the x-axis title on the bottom row only.
-stance_panel <- function(y, title, y_label, show_legend = FALSE, show_x_title = FALSE) {
-  ggplot(stance_means, aes(x = stance_pct, y = {{ y }}, color = Condition)) +
-    stance_events +
-    geom_line(linewidth = 1.2, na.rm = TRUE) +
+stance_panel <- function(y, title, y_label, show_legend = FALSE, show_x_title = FALSE,
+                         y_scale = scale_y_continuous()) {
+  stance_means |>
+    filter(!is.na({{ y }})) |> # EMA crossing points have no GRF, force or strain
+    ggplot(aes(x = stance_pct, y = {{ y }}, color = Condition)) +
+    geom_line(linewidth = 1.2) +
     stance_x_scale +
+    y_scale +
     scale_color_manual(name = NULL, values = c("FLAT" = "black", "HEEL" = col_dark),
                        labels = c("FLAT" = "Flats", "HEEL" = "Heels")) +
     labs(title = title, y = y_label) +
@@ -906,7 +932,9 @@ summary_box_panel <- function(y, title, test, y_label) {
 stance_summary_fig <- plot_grid(
   stance_panel(grf, "Ground Reaction Force", "GRF (BW)", show_legend = TRUE),
   summary_box_panel(peak_Fr, "Peak GRF", peak_GRF_test, "Peak GRF (BW)"),
-  stance_panel(ema, "Effective Mechanical Advantage", "EMA (r/R)"),
+  stance_panel(ema, "Effective Mechanical Advantage", "EMA (r/R)",
+               y_scale = scale_y_continuous(limits = c(0, ema_ymax),
+                                            breaks = seq(0, ema_ymax, by = 0.25))),
   summary_box_panel(EMA_pushoff, "EMA at Push-off GRF Peak", EMA_test, "EMA (r/R)"),
   stance_panel(fmtu, "Achilles Tendon Force", "AT Force (BW)"),
   summary_box_panel(peak_Fmtu, "Peak AT Force", peak_Fmtu_test, "Peak AT Force (BW)"),
