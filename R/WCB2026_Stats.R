@@ -824,12 +824,17 @@ strain_curves <- participant_curves |>
   summarize(n = n(), avg_lin_strain = mean(strain_mean), sd_lin_strain = sd(strain_mean), .groups = "drop")
 stopifnot(n_distinct(strain_curves$n) == 1) # same participants at every point and in both conditions
 
-strain_stance_fig <- ggplot(strain_curves, aes(x = stance_pct, y = avg_lin_strain, color = Condition)) +
+# Flats in col_light, dashed and drawn on top of the solid heels line
+strain_stance_fig <- strain_curves |>
+  mutate(Condition = factor(Condition, levels = c("HEEL", "FLAT"))) |> # draw order: flats on top
+  ggplot(aes(x = stance_pct, y = avg_lin_strain, color = Condition, linetype = Condition)) +
   geom_line(linewidth = 2) +
   labs(y = "Strain (%)", title = "Achilles Tendon Strain Over Stance") +
   stance_x_scale +
-  scale_color_manual(name = NULL, values = c("FLAT" = "black", "HEEL" = col_dark),
-                     labels = c("FLAT" = "Flats", "HEEL" = "Heels")) +
+  scale_color_manual(name = NULL, values = c("FLAT" = col_light, "HEEL" = col_dark),
+                     breaks = c("FLAT", "HEEL"), labels = c("Flats", "Heels")) +
+  scale_linetype_manual(name = NULL, values = c("FLAT" = "dashed", "HEEL" = "solid"),
+                        breaks = c("FLAT", "HEEL"), labels = c("Flats", "Heels")) +
   theme_wcb() +
   theme(
     plot.title         = element_text(size = 30),
@@ -838,11 +843,12 @@ strain_stance_fig <- ggplot(strain_curves, aes(x = stance_pct, y = avg_lin_strai
     axis.text.x        = element_text(size = 18, color = "black", margin = margin(t = 10)),
     axis.text.y        = element_text(size = 18, color = "black", margin = margin(r = 10)),
     legend.position    = "inside",
-    legend.position.inside = c(0.15, 0.95),
-    legend.justification = c("right", "top"),
+    legend.position.inside = c(0.02, 0.95),
+    legend.justification = c("left", "top"),
     legend.background  = element_rect(fill = "white", color = "black", linewidth = 0.4),
     legend.margin      = margin(t = 4, r = 6, b = 4, l = 6),
     legend.key         = element_rect(fill = "white", color = NA),
+    legend.key.width   = unit(2.5, "lines"), # long enough to show the dashes
     legend.text        = element_text(size = 20),
     plot.margin        = margin(t = 5, r = 25, b = 5, l = 5)
   )
