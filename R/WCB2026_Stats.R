@@ -382,7 +382,7 @@ print(reg_results, width = Inf)
 
 # 9. Figure styling -----------------------------------------------------------
 
-col_light <- "#A9A9A9" # Pre / Flats / Nonusers
+col_light <- "#FFCC99" # Pre / Flats / Nonusers; time series lines in this color are dashed
 col_dark  <- "#CC6600" # Post / Heels / Users
 
 # Okabe-Ito colorblind-safe palette, one fixed color per participant so each
@@ -762,10 +762,22 @@ shared_ylim   <- c(0, 1.75)
 shared_breaks <- seq(0, 1.75, by = 0.25)
 ema_scale     <- shared_ylim[2] / (1.05 * max(grf_ema_curves$ema, na.rm = TRUE))
 
-combined_grf_ema_fig <- grf_ema_curves |>
-  ggplot(aes(x = stance_pct)) +
-  geom_line(aes(y = grf_bw, color = GRF_series), linewidth = 2) +
-  geom_line(aes(y = ema * ema_scale, color = EMA_series), linewidth = 2, na.rm = TRUE) +
+# All four lines in one layer, on the GRF axis (EMA multiplied by ema_scale).
+# Series are drawn in factor-level order: solid heels lines first, then the
+# dashed flats lines on top so the dashes stay visible where lines overlap.
+series_draw_order   <- c("Heels GRF", "Heels EMA", "Flats GRF", "Flats EMA")
+series_legend_order <- c("Flats EMA", "Flats GRF", "Heels EMA", "Heels GRF")
+
+grf_ema_long <- bind_rows(
+  grf_ema_curves |> transmute(stance_pct, series = GRF_series, value = grf_bw),
+  grf_ema_curves |> transmute(stance_pct, series = EMA_series, value = ema * ema_scale)
+) |>
+  filter(!is.na(value)) |>
+  mutate(series = factor(series, levels = series_draw_order))
+
+combined_grf_ema_fig <- grf_ema_long |>
+  ggplot(aes(x = stance_pct, y = value, color = series, linetype = series)) +
+  geom_line(linewidth = 2) +
   scale_y_continuous(
     name = "Ground Reaction Force (BW)",
     breaks = shared_breaks,
@@ -773,9 +785,14 @@ combined_grf_ema_fig <- grf_ema_curves |>
   ) +
   stance_x_scale +
   coord_cartesian(ylim = shared_ylim) +
-  scale_color_manual(name = NULL, values = c(
+  scale_color_manual(name = NULL, breaks = series_legend_order, values = c(
     "Heels GRF" = "black", "Flats GRF" = "grey60",
     "Flats EMA" = col_light, "Heels EMA" = col_dark
+  )) +
+  # Flats lines are dashed (the light flats EMA color stays visible this way)
+  scale_linetype_manual(name = NULL, breaks = series_legend_order, values = c(
+    "Heels GRF" = "solid", "Flats GRF" = "dashed",
+    "Flats EMA" = "dashed", "Heels EMA" = "solid"
   )) +
   theme_wcb() +
   theme(
@@ -793,10 +810,11 @@ combined_grf_ema_fig <- grf_ema_curves |>
     legend.background   = element_rect(fill = "white", color = "black", linewidth = 0.4),
     legend.margin       = margin(t = 4, r = 6, b = 4, l = 6),
     legend.key          = element_rect(fill = "white", color = NA),
+    legend.key.width    = unit(2.5, "lines"), # long enough to show the dashes
     legend.text         = element_text(size = 18)
   )
 combined_grf_ema_fig
-save_fig(combined_grf_ema_fig, "flats_vs_heels_grf_ema_combined_fig.pdf", width = 9.21, height = 7.03)
+save_fig(combined_grf_ema_fig, "flats_vs_heels_grf_ema_combined_fig.pdf", width = 13, height = 7.03)
 
 
 # 16. Figure: AT strain over stance ---------------------------------------------
@@ -889,28 +907,36 @@ theme_summary_grid <- theme(
   legend.text   = element_text(size = 13)
 )
 
-# Mean time series over stance, heels vs flats. The legend is drawn in one panel
-# only, and the x-axis title on the bottom row only.
+# Mean time series over stance, heels vs flats. Flats are drawn last so the
+# dashed line stays visible where it overlaps the solid heels line. The legend
+# is drawn in one panel only (bottom center of the GRF panel, below the curves),
+# and the x-axis title on the bottom row only.
 stance_panel <- function(y, title, y_label, show_legend = FALSE, show_x_title = FALSE,
                          y_scale = scale_y_continuous()) {
   stance_means |>
     filter(!is.na({{ y }})) |> # EMA crossing points have no GRF, force or strain
-    ggplot(aes(x = stance_pct, y = {{ y }}, color = Condition)) +
+    mutate(Condition = factor(Condition, levels = c("HEEL", "FLAT"))) |> # draw order: flats on top
+    ggplot(aes(x = stance_pct, y = {{ y }}, color = Condition, linetype = Condition)) +
     geom_line(linewidth = 1.2) +
     stance_x_scale +
     y_scale +
-    scale_color_manual(name = NULL, values = c("FLAT" = "black", "HEEL" = col_dark),
-                       labels = c("FLAT" = "Flats", "HEEL" = "Heels")) +
+    # Flats in col_light, dashed so the light color stays visible
+    scale_color_manual(name = NULL, values = c("FLAT" = col_light, "HEEL" = col_dark),
+                       breaks = c("FLAT", "HEEL"), labels = c("Flats", "Heels")) +
+    scale_linetype_manual(name = NULL, values = c("FLAT" = "dashed", "HEEL" = "solid"),
+                          breaks = c("FLAT", "HEEL"), labels = c("Flats", "Heels")) +
     labs(title = title, y = y_label) +
     theme_wcb() +
     theme_summary_grid +
     theme(
       axis.title.x           = if (show_x_title) element_text(size = 14) else element_blank(),
       legend.position        = if (show_legend) "inside" else "none",
-      legend.position.inside = c(0.02, 0.98),
-      legend.justification   = c("left", "top"),
+      legend.position.inside = c(0.5, 0.04),
+      legend.justification   = c("center", "bottom"),
+      legend.direction       = "horizontal",
       legend.background      = element_rect(fill = "white", color = "black", linewidth = 0.4),
       legend.key             = element_rect(fill = "white", color = NA),
+      legend.key.width       = unit(2.5, "lines"),
       plot.margin            = margin(t = 5, r = 25, b = 5, l = 5) # room for "Toe-off"
     )
 }
