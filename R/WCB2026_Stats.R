@@ -16,10 +16,6 @@
 #   Q3. Did the change in AT stiffness scale with daily steps in heels
 #       (dose-response)?
 #
-# AT length and cross-sectional area were also recorded but are not analyzed:
-# their measurements were not reliable enough (e.g. length changes of up to
-# 20% within ~100 days, recorded in 2.5-5 mm steps).
-#
 # Statistical approach
 #   * Baseline characteristics are reported descriptively for every
 #     participant and by group, without significance tests.
