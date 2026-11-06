@@ -452,7 +452,7 @@ reg_fig <- function(predictor, x_label, x_scale, title = NULL, axis_title_size =
       title = title,
       subtitle = subtitle,
       x = x_label,
-      y = expression(paste(Delta, "Tendon Stiffness (", Delta, "%)"))
+      y = expression(paste(Delta, "Tendon Stiffness (%)"))
     ) +
     theme_wcb() +
     theme(
@@ -467,7 +467,7 @@ reg_fig <- function(predictor, x_label, x_scale, title = NULL, axis_title_size =
 }
 
 # Save a figure to fig_dir at a fixed size so output does not depend on the
-# size of the RStudio plot pane
+# size of the RStudio plot panel
 save_fig <- function(plot, filename, width, height) {
   ggsave2(filename, plot = plot, path = fig_dir, width = width, height = height, units = "in")
 }
@@ -563,7 +563,7 @@ stiffness_diff_fig <- diff_data |>
   participant_color_scale +
   ylim(-20, 32) +
   labs(title = "Between Groups", subtitle = format_p(stiffness_group_test$p_val), x = "Group",
-       y = expression(paste(Delta, "Tendon Stiffness (", Delta, "%)"))) +
+       y = expression(paste(Delta, "Tendon Stiffness (%)"))) +
   theme_wcb() +
   theme_stiffness
 
@@ -973,3 +973,4 @@ stance_summary_fig <- plot_grid(
 )
 stance_summary_fig
 save_fig(stance_summary_fig, "flats_vs_heels_stance_summary_fig.pdf", width = 12, height = 16)
+
