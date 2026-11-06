@@ -99,16 +99,22 @@ repository root, so the scripts run from a fresh clone without editing.
 
 ### Running the R steps
 
-Open `GA_Tech_Heels.Rproj` in RStudio and source the scripts, or from the
-repository root:
+Run the scripts any way you like: open them in RStudio and click Source (or
+run them line by line), `source()` them, or use `Rscript` from any folder:
 
 ```bash
-Rscript R/build_participant_data_sheet.R
+Rscript path/to/GA_Tech_Heels/R/build_participant_data_sheet.R
 ```
 
 ```bash
-Rscript R/WCB2026_Stats.R
+Rscript path/to/GA_Tech_Heels/R/WCB2026_Stats.R
 ```
+
+Each script finds the repository folder from its own location, so figures
+and tables are always written to `output/` inside the repository, whatever
+the working directory. If the location cannot be determined, the script
+falls back to `here::here()`, which looks for `GA_Tech_Heels.Rproj`; opening
+the project in RStudio always works.
 
 `build_participant_data_sheet.R` prints every value it changes and saves a
 dated backup of the files it overwrites (backups are ignored by git).
@@ -142,6 +148,8 @@ Versions used for the poster analysis:
   | mosaic | 1.9.2 |
   | cowplot | 1.2.0 |
   | scales | 1.4.0 |
+  | here | 1.0.2 |
+  | rstudioapi (optional, used when running lines in RStudio) | 0.17.1 |
 
 ## Notes on the data
 
