@@ -66,11 +66,33 @@ n_perm    <- 10000 # random resamples per test when exact enumeration is too lar
 max_exact <- 1e5   # largest null distribution that is enumerated exactly
 tol       <- sqrt(.Machine$double.eps) # tolerance when comparing permuted and observed means
 
-# Paths are relative to the repository root. Open GA_Tech_Heels.Rproj in
-# RStudio, or run `Rscript R/WCB2026_Stats.R` from the repository root.
-repo_dir <- "."
+# Repository root, found from this script's own location (the folder above R/),
+# so the script works from any working directory: RStudio (Source button or
+# running lines), source(), or Rscript. If the script's location cannot be
+# determined, here::here() finds the root from the working directory instead
+# (it looks for GA_Tech_Heels.Rproj or .git).
+find_repo_dir <- function() {
+  script <- NULL
+  file_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+  if (length(file_arg) == 1) {
+    script <- sub("^--file=", "", file_arg)                         # Rscript
+  }
+  if (is.null(script)) {
+    script <- tryCatch(sys.frame(1)$ofile, error = function(e) NULL) # source() / Source button
+  }
+  if (is.null(script) && requireNamespace("rstudioapi", quietly = TRUE) &&
+      rstudioapi::isAvailable()) {
+    script <- rstudioapi::getSourceEditorContext()$path              # running lines in RStudio
+  }
+  if (!is.null(script) && nzchar(script)) {
+    return(normalizePath(file.path(dirname(script), "..")))
+  }
+  here::here()
+}
+repo_dir <- find_repo_dir()
 if (!dir.exists(file.path(repo_dir, "data", "analysis"))) {
-  stop("Run this script from the repository root (e.g. open GA_Tech_Heels.Rproj).")
+  stop("Could not find the repository folder (looked in ", repo_dir, "). ",
+       "Open GA_Tech_Heels.Rproj in RStudio and run the script from there.")
 }
 analysis_dir  <- file.path(repo_dir, "data", "analysis")
 processed_dir <- file.path(repo_dir, "data", "processed")
