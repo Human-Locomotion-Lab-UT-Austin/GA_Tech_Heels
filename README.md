@@ -61,7 +61,7 @@ GA_Tech_Heels/
 │   ├── params/       per-visit tendon parameters used by the MATLAB pipeline
 │   ├── processed/    MATLAB output
 │   └── analysis/     R input
-├── output/           figures and tables written by WCB2026_Stats.R (not tracked)
+├── output/           figures (tracked) and tables (not tracked) written by WCB2026_Stats.R
 └── docs/
     └── WCB2026_poster.pdf
 ```

@@ -996,3 +996,8 @@ stance_summary_fig <- plot_grid(
 stance_summary_fig
 save_fig(stance_summary_fig, "flats_vs_heels_stance_summary_fig.pdf", width = 12, height = 16)
 
+
+# Report where the output was written, so it is clear which copy of the
+# repository was run
+message("Figures saved to: ", normalizePath(fig_dir),
+        "\nTables saved to:  ", normalizePath(table_dir))

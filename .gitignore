@@ -16,8 +16,10 @@ Rplots.pdf
 data/raw/*
 !data/raw/README.md
 
-# Generated output: recreate with R/WCB2026_Stats.R
-output/
+# Generated output: recreate with R/WCB2026_Stats.R. Figures are tracked so the
+# current versions are in the repository; tables are not.
+output/*
+!output/figures/
 
 # Backups written by R/build_participant_data_sheet.R
 *_backup_*.csv
