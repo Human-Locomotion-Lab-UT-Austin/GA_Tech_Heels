@@ -33,7 +33,9 @@
 #     combination or group assignment) when that is feasible, which is the case
 #     for every test here; otherwise 10,000 random resamples are used.
 #   * Q3: simple linear regression of the % change in stiffness on daily steps
-#     in heels (primary). Supplementary: the heels - flats
+#     in heels (primary), reported as the change per 1,000 steps/day with a
+#     95% CI and tested with an exact permutation test of the slope (all 8!
+#     pairings of outcomes with step counts). Supplementary: the heels - flats
 #     difference in peak GRF averaged across visits, reported as r with a 95% CI.
 #
 # Inputs
@@ -179,6 +181,42 @@ group_perm_test <- function(x, group, nperm = n_perm) {
   c(list(n = n, obs_diff = obs_diff, ci_low = ci[1], ci_high = ci[2],
          cohens_d = obs_diff / pooled_sd),
     perm_p(perm_diff, obs_diff),
+    list(method = if (exact) "exact" else "Monte Carlo"))
+}
+
+# Every ordering of 1..n, one per row (n! rows). Used for exact permutation
+# tests of a regression slope.
+all_orderings <- function(n) {
+  if (n == 1) return(matrix(1L, 1, 1))
+  smaller <- all_orderings(n - 1)
+  do.call(rbind, lapply(seq_len(n), function(first) {
+    cbind(first, matrix(setdiff(seq_len(n), first)[smaller], ncol = n - 1))
+  }))
+}
+
+# Two-sided permutation test for a simple linear regression slope (y ~ x).
+# Under H0 (no association) every pairing of the outcomes with the predictor
+# values is equally likely, so the null distribution comes from reassigning the
+# outcomes to participants: all n! orderings when feasible, otherwise nperm
+# random shuffles. Unlike the lm() P value, it does not assume normally
+# distributed residuals, which cannot be checked with this few participants.
+slope_perm_test <- function(x, y, nperm = n_perm) {
+  keep <- !is.na(x) & !is.na(y)
+  x <- x[keep]
+  y <- y[keep]
+  n <- length(x)
+  xc <- x - mean(x)
+  slope <- function(y_perm) as.vector(y_perm %*% xc) / sum(xc^2)
+  obs_slope <- slope(matrix(y, nrow = 1))
+  exact <- factorial(n) <= max_exact
+  if (exact) {
+    perm_slope <- slope(matrix(y[all_orderings(n)], ncol = n)) # one row per ordering
+  } else {
+    perm_slope <- slope(t(replicate(nperm, sample(y))))
+  }
+  print(histogram(perm_slope, nint = 25, v = obs_slope))
+  c(list(n = n, obs_slope = obs_slope),
+    perm_p(perm_slope, obs_slope),
     list(method = if (exact) "exact" else "Monte Carlo"))
 }
 
@@ -368,9 +406,15 @@ print(perm_results, width = Inf)
 # heels consistently, so a regression of stiffening on strain across all
 # participants mixes exposed and unexposed tendons and is not interpretable;
 # the strain finding is the Q2 heels vs flats comparison instead.
+#
+# Steps in heels are expressed in thousands of steps per day, so the slope is
+# the % change in stiffness per additional 1,000 steps/day in heels, sustained
+# over the intervention (89-111 days). It is not the change per 1,000 steps in
+# total. Rescaling changes only the slope's units: r and P are unaffected.
 predictor_data <- d |>
   filter(Time == "Post") |> # step counts are identical on Pre and Post rows
   select(ParticipantID, htd_steps = HTDSteps) |>
+  mutate(htd_steps = htd_steps / 1000) |> # thousands of steps/day
   left_join(select(footwear_diff, ParticipantID, peak_Fr_diff), by = "ParticipantID")
 
 reg_data <- left_join(diff_data, predictor_data, by = "ParticipantID")
@@ -383,18 +427,30 @@ reg_models <- c(primary_predictor, supplementary_predictors) |>
   set_names() |>
   map(~ lm(reformulate(.x, response = "k_lin"), data = reg_data))
 
-# r with a 95% CI (Fisher z) for every predictor
+# For every predictor: slope with its 95% CI (t-based, from confint()), and r
+# with its 95% CI (Fisher z). p_val is the lm() P value.
 reg_results <- reg_models |>
   map(function(m) {
     s <- summary(m)
-    ci <- stats::cor.test(m$model[[2]], m$model[[1]])$conf.int
+    slope_ci <- confint(m)[2, ]
+    r_ci <- stats::cor.test(m$model[[2]], m$model[[1]])$conf.int
     tibble(n = nobs(m), slope = coef(m)[[2]],
+           slope_ci_low = slope_ci[[1]], slope_ci_high = slope_ci[[2]],
            r = sign(coef(m)[[2]]) * sqrt(s$r.squared),
-           r_ci_low = ci[1], r_ci_high = ci[2],
+           r_ci_low = r_ci[1], r_ci_high = r_ci[2],
            r_squared = s$r.squared, p_val = coef(s)[2, 4])
   }) |>
   bind_rows(.id = "predictor") |>
   mutate(role = if_else(predictor == primary_predictor, "primary", "supplementary"), .after = predictor)
+
+# Primary inference for Q3: exact permutation test of the steps-in-heels slope
+# (8! = 40,320 orderings), consistent with the permutation tests in Q1 and Q2.
+# This is the P value reported in the figure. The supplementary predictor is
+# descriptive (r with a 95% CI), so it is not tested.
+htd_slope_test <- slope_perm_test(reg_data$htd_steps, reg_data$k_lin)
+reg_results <- reg_results |>
+  mutate(perm_p_val = if_else(role == "primary", htd_slope_test$p_val, NA_real_),
+         perm_min_p = if_else(role == "primary", htd_slope_test$min_p, NA_real_))
 print(reg_results, width = Inf)
 
 
@@ -452,13 +508,17 @@ paired_box_fig <- function(data, y, line_group, x_labels, title, subtitle, y_lab
 }
 
 # Scatter plot of % change in stiffness against one predictor, with the least
-# squares line. The subtitle gives r and P for the primary predictor, and r with
-# its 95% CI for supplementary predictors (see section 8)
+# squares line. The subtitle gives the slope per 1,000 steps/day with its 95% CI,
+# r and the permutation P for the primary predictor, and r with its 95% CI for
+# supplementary predictors (see section 8)
 reg_fig <- function(predictor, x_label, x_scale, title = NULL, axis_title_size = 26) {
   res <- filter(reg_results, .data$predictor == !!predictor)
   f <- function(v) formatC(v, digits = 2, format = "f")
+  f1 <- function(v) formatC(v, digits = 1, format = "f", flag = "+")
   subtitle <- if (res$role == "primary") {
-    paste0("r = ", f(res$r), ", ", format_p(res$p_val))
+    paste0(f1(res$slope), "% per 1,000 steps/day (95% CI ", f1(res$slope_ci_low),
+           " to ", f1(res$slope_ci_high), ")\n",
+           "r = ", f(res$r), ", ", format_p(res$perm_p_val))
   } else {
     paste0("r = ", f(res$r), " (95% CI ", f(res$r_ci_low), " to ", f(res$r_ci_high), ")")
   }
@@ -501,7 +561,9 @@ save_fig <- function(plot, filename, width, height) {
 # Primary predictor: daily steps in heels (dose-response)
 htd_steps_reg_fig <- reg_fig(
   "htd_steps", "Steps in High Heels per Day",
-  scale_x_continuous(breaks = seq(0, 4000, by = 1000), limits = c(0, 4000)),
+  # predictor is in thousands of steps/day; axis labels show steps/day
+  scale_x_continuous(breaks = 0:4, limits = c(0, 4),
+                     labels = scales::label_comma(scale = 1000)),
   title = "Steps in Heels"
 )
 htd_steps_reg_fig
@@ -592,7 +654,10 @@ stiffness_diff_fig <- diff_data |>
 combined_stiffness_fig <- plot_grid(
   plot_grid(stiffness_users_fig, stiffness_nonusers_fig,
             labels = c("A", "B"), ncol = 2, align = "hv"),
-  plot_grid(stiffness_diff_fig, htd_steps_reg_fig,
+  plot_grid(stiffness_diff_fig,
+            # smaller subtitle so the two-line slope label fits the half-width panel
+            htd_steps_reg_fig + theme(plot.subtitle = element_text(size = 15),
+                                      plot.margin = margin(5.5, 18, 5.5, 5.5)),
             labels = c("C", "D"), ncol = 2),
   nrow = 2
 )
