@@ -658,10 +658,14 @@ combined_stiffness_fig <- plot_grid(
   plot_grid(stiffness_users_fig, stiffness_nonusers_fig,
             labels = c("A", "B"), ncol = 2, align = "hv"),
   plot_grid(stiffness_diff_fig,
-            # smaller subtitle so the two-line slope label fits the half-width panel
-            htd_steps_reg_fig + theme(plot.subtitle = element_text(size = 15),
-                                      plot.margin = margin(5.5, 18, 5.5, 5.5)),
-            labels = c("C", "D"), ncol = 2),
+            # same title, axis title and axis text sizes as panels A-C
+            # (theme_stiffness); the standalone htd_steps_reg_fig keeps its
+            # larger poster sizes. Smaller subtitle so the two-line slope label
+            # fits the half-width panel.
+            htd_steps_reg_fig + theme_stiffness +
+              theme(plot.subtitle = element_text(size = 15),
+                    plot.margin = margin(5.5, 18, 5.5, 5.5)),
+            labels = c("C", "D"), ncol = 2, align = "h", axis = "tb"),
   nrow = 2
 )
 combined_stiffness_fig
