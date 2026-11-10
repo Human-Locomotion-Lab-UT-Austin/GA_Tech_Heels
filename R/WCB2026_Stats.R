@@ -1214,22 +1214,20 @@ tbl_q2_visits <- footwear_by_time |>
     `Min. attainable P` = fmt_pval(min_p)
   )
 
-# The GRF slope is shown per 0.1 BW: heels - flats differences are about
-# 0.05 BW, so a slope per 1 BW would describe an unrealistically large change
-grf_unit <- 0.1
+# Table 6 reports the primary predictor only. The supplementary peak GRF
+# regression stays in reg_results (output/tables/regressions.csv) and its
+# figure, supp_peak_grf_reg_fig.pdf.
 tbl_q3 <- reg_results |>
-  mutate(across(c(slope, slope_ci_low, slope_ci_high),
-                ~ if_else(predictor == "peak_Fr_diff", .x * grf_unit, .x))) |>
+  filter(role == "primary") |>
   transmute(
-    Predictor = if_else(predictor == "htd_steps", "Steps in heels (per 1,000 steps/day)",
-                        paste0("Heels - flats peak GRF (per ", grf_unit, " BW)")),
-    Role = if_else(role == "primary", "Primary", "Supplementary (descriptive)"),
+    Predictor = "Steps in heels (per 1,000 steps/day)",
     n = as.character(n),
     `Slope, % stiffness change (95% CI)` = fmt_mean_ci(slope, slope_ci_low, slope_ci_high, 1),
     `r (95% CI)` = fmt_mean_ci(r, r_ci_low, r_ci_high, 2),
     `R²` = fmt(r_squared, 2),
-    `P (permutation)` = if_else(role == "primary", fmt_pval(perm_p_val), "not tested"),
-    `P (regression)` = if_else(role == "primary", fmt_pval(p_val), "not tested")
+    `P (permutation)` = fmt_pval(perm_p_val),
+    `Min. attainable P` = fmt_pval(perm_min_p),
+    `P (regression)` = fmt_pval(p_val)
   )
 
 # --- Write the sheet ---
@@ -1245,7 +1243,7 @@ summary_lines <- c(
   "- All tests are two-sided permutation tests with the null distribution enumerated exactly (every possible sign combination, group assignment or pairing), at alpha = 0.05.",
   "- **Q1 (stiffness change):** the primary test compares the mean Pre to Post % change in linear AT stiffness between Users and Nonusers (group labels reassigned; 70 possible assignments). The 95% CI is Welch's; Cohen's d uses the pooled SD. Within-group changes are descriptive: with 4 participants the sign-flip test cannot give P below 0.125.",
   "- **Q2 (heels vs flats):** sign-flip test on each participant's heels - flats difference, averaged across the Pre and Post visits that had both conditions. 95% CIs are t-based. Robustness: the same test within each visit separately.",
-  "- **Q3 (dose-response):** simple linear regression of % change in stiffness on daily steps in heels. The slope is tested by permuting the outcomes across participants (8! = 40,320 pairings); its 95% CI is t-based and r's 95% CI uses Fisher's z. The peak GRF predictor is supplementary and descriptive (no test).",
+  "- **Q3 (dose-response):** simple linear regression of % change in stiffness on daily steps in heels. The slope is tested by permuting the outcomes across participants (8! = 40,320 pairings); its 95% CI is t-based and r's 95% CI uses Fisher's z. P (regression) is the conventional t-test P from the linear model, shown for comparison.",
   "- **Min. attainable P** is the smallest P value the design can produce for that test.",
   "- GRF and AT force are in body weights (BW). Summary values are calculated within each stance (heel strike to toe-off) and averaged over the 12-15 stances of each 15 s walking trial at 1.3 m/s.",
   "",
@@ -1274,10 +1272,9 @@ summary_lines <- c(
   md_table(tbl_q2_visits),
   "## 4. Q3: Dose-response",
   "",
-  "**Table 6.** Regression of % change in AT stiffness on each predictor. The slope for steps in heels is the % change per additional 1,000 steps/day sustained over the intervention (89-111 days).",
+  "**Table 6.** Regression of % change in AT stiffness on daily steps in heels. The slope is the % change per additional 1,000 steps/day sustained over the intervention (89-111 days).",
   "",
   md_table(tbl_q3),
-  "Limitations of the supplementary peak GRF predictor: Nonusers' heels - flats GRF difference was measured in the lab but was not a load they received during the intervention; only 3 Users have GRF data; and AT strain was lower in heels even though peak GRF was higher, so GRF is not a measure of tendon load. See the comments in section 10 of the script.",
   ""
 )
 summary_file <- file.path(repo_dir, "output", "statistics_summary.md")
