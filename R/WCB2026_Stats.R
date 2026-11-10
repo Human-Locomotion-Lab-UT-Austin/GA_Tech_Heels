@@ -1180,27 +1180,27 @@ tbl_baseline <- baseline_table |>
   select(-Group) |>
   rename(` ` = Participant)
 
-# One row per measure: each group's n, mean (SD) and range, then the
-# Users - Nonusers difference with its Welch 95% CI, Cohen's d and permutation P
-step_group_cells <- step_summary |>
+# Two rows per measure (Users, then Nonusers) with n, mean (SD) and range; the
+# Users - Nonusers difference (Welch 95% CI), Cohen's d and permutation P are on
+# the first row of each measure. Plain text only (no HTML line breaks), so the
+# table reads correctly in any Markdown viewer.
+tbl_steps <- step_summary |>
+  left_join(select(step_group_tests, -n), by = "measure") |> # n: per group, from step_summary
+  mutate(Compliance = factor(Compliance, levels = c("User", "Nonuser"))) |>
+  arrange(measure, Compliance) |>
+  group_by(measure) |>
+  mutate(first = row_number() == 1) |>
+  ungroup() |>
   transmute(
-    measure,
-    group = if_else(Compliance == "User", "Users", "Nonusers"),
-    cell = paste0(fmt(mean, 0), " (", fmt(sd, 0), ")<br>",
-                  fmt(min, 0), " to ", fmt(max, 0), "<br>n = ", n)
-  ) |>
-  pivot_wider(names_from = group, values_from = cell)
-
-tbl_steps <- step_group_cells |>
-  left_join(step_group_tests, by = "measure") |>
-  transmute(
-    Measure = measure,
-    `Users: mean (SD), range` = Users,
-    `Nonusers: mean (SD), range` = Nonusers,
-    `Users - Nonusers (95% CI)` = fmt_mean_ci(obs_diff, ci_low, ci_high, 0),
-    `Cohen's d` = fmt(cohens_d, 2),
-    P = fmt_pval(p_val),
-    `Min. attainable P` = fmt_pval(min_p)
+    Measure = if_else(first, measure, ""),
+    Group = if_else(Compliance == "User", "Users", "Nonusers"),
+    n = as.character(n),
+    `Mean (SD)` = paste0(fmt(mean, 0), " (", fmt(sd, 0), ")"),
+    Range = paste0(fmt(min, 0), " to ", fmt(max, 0)),
+    `Users - Nonusers (95% CI)` = if_else(first, fmt_mean_ci(obs_diff, ci_low, ci_high, 0), ""),
+    `Cohen's d` = if_else(first, fmt(cohens_d, 2), ""),
+    P = if_else(first, fmt_pval(p_val), ""),
+    `Min. attainable P` = if_else(first, fmt_pval(min_p), "")
   )
 steps_missing <- step_summary |>
   filter(missing != "") |>
