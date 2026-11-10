@@ -20,9 +20,9 @@ function results = analyze_participant(pid, day, cond, lin_k, rest_AtMA, CSA, Lo
 % OUTPUT
 %   results - struct with fields:
 %       ParticipantID, E, mean_peak_Fmtu_EMA, mean_pushoff_GRF_EMA, mean_lin_strain_impulse,
-%       mean_peak_lin_strain, mean_lin_strain, mean_peak_Fr, mean_peak_Fmtu,
-%       mean_Fmtu, mean_peak_ank_mom, mean_ank_mom,
-%       mass, num_strides (diagnostics)
+%       mean_peak_lin_strain, mean_lin_strain, mean_peak_Fr, mean_impact_Fr,
+%       mean_pushoff_Fr, mean_peak_Fmtu, mean_Fmtu, mean_peak_ank_mom, mean_ank_mom,
+%       mass, num_strides, n_impact_Fr, n_pushoff_Fr (diagnostics)
 
 pid  = char(pid); % allow string or char input for dynamic field access
 day  = char(day);
@@ -103,6 +103,28 @@ for i = 1:num_strides
     end
 end
 mean_peak_Fr = mean(peak_Fr, 'omitnan');
+
+% Impact and push-off peaks of the resultant GRF: the highest peak in the first
+% and second half of each stance (same findpeaks threshold as above). In walking
+% these are the weight-acceptance peak (~25% of stance) and the push-off peak
+% (~75-80%). At the 10 Hz GRF filter cutoff the brief heel-strike impact
+% transient is removed, so the "impact" peak is the weight-acceptance peak.
+% A stance with no peak in one half is left as NaN for that peak.
+impact_Fr = nan(1, num_strides);
+pushoff_Fr = nan(1, num_strides);
+for i = 1:num_strides
+    idx1 = heelstrike_index(i);
+    idx2 = toeoff_index(i);
+    segment = filt_Fr(idx1:idx2);
+    [pks, locs] = findpeaks(segment, "MinPeakHeight", max(segment)/1.5);
+    early = locs <= numel(segment) / 2;
+    if any(early),  impact_Fr(i)  = max(pks(early));  end
+    if any(~early), pushoff_Fr(i) = max(pks(~early)); end
+end
+mean_impact_Fr = mean(impact_Fr, 'omitnan');
+mean_pushoff_Fr = mean(pushoff_Fr, 'omitnan');
+n_impact_Fr = sum(~isnan(impact_Fr));   % stances with an impact peak
+n_pushoff_Fr = sum(~isnan(pushoff_Fr)); % stances with a push-off peak
 
 %% Ankle moment
 norm_ank_mom = (JointMomentData.(pid).(day).(cond).AnkMom'); % Nm/kg
@@ -246,6 +268,10 @@ results.mean_lin_strain_impulse = mean_lin_strain_impulse;
 results.mean_peak_lin_strain = mean_peak_lin_strain;
 results.mean_lin_strain = mean_lin_strain;
 results.mean_peak_Fr = mean_peak_Fr;
+results.mean_impact_Fr = mean_impact_Fr;
+results.mean_pushoff_Fr = mean_pushoff_Fr;
+results.n_impact_Fr = n_impact_Fr;
+results.n_pushoff_Fr = n_pushoff_Fr;
 results.mass = mass;
 results.num_strides = num_strides;
 results.mean_peak_Fmtu = mean_peak_Fmtu;

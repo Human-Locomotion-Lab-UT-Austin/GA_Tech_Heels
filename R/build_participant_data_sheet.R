@@ -67,7 +67,9 @@ batch_columns <- c(
   mean_Fmtu      = "mean_Fmtu",               # N
   peak_ank_mom   = "mean_peak_ank_mom",       # Nm/kg
   mean_ank_mom   = "mean_ank_mom",            # Nm/kg
-  peak_Fr        = "mean_peak_Fr"             # N
+  peak_Fr        = "mean_peak_Fr",            # N, largest GRF peak in each stance
+  impact_Fr      = "mean_impact_Fr",          # N, highest GRF peak in the first half of stance
+  pushoff_Fr     = "mean_pushoff_Fr"          # N, highest GRF peak in the second half of stance
 )
 
 # Visits excluded from every heels / flats variable, with the reason
@@ -160,9 +162,9 @@ cat("Wrote", sheet_file, "\nBackup of the previous sheet:", backup_file, "\n")
 # 5. Regenerate heels_flats_comp.csv ---------------------------------------------
 
 # One row per participant x condition x visit, in data sheet row order with
-# flats before heels; peak GRF and peak AT force expressed in body weights.
+# flats before heels; GRF peaks and peak AT force expressed in body weights.
 comp_vars <- c("EMA", "EMA_pushoff", "strain_impulse", "peak_strain", "mean_strain",
-               "peak_Fr", "peak_Fmtu")
+               "peak_Fr", "impact_Fr", "pushoff_Fr", "peak_Fmtu")
 
 heels_flats_comp <- new_sheet |>
   select(ParticipantID, Time, Mass, matches(sprintf("^(heels|flats)_(%s)$", paste(comp_vars, collapse = "|")))) |>
@@ -170,6 +172,8 @@ heels_flats_comp <- new_sheet |>
                names_pattern = "(heels|flats)_(.*)") |>
   mutate(Condition = if_else(Condition == "heels", "Heels", "Flats"),
          peak_Fr   = peak_Fr / (Mass * g),
+         impact_Fr  = impact_Fr / (Mass * g),
+         pushoff_Fr = pushoff_Fr / (Mass * g),
          peak_Fmtu = peak_Fmtu / (Mass * g)) |>
   arrange(match(paste(ParticipantID, Time), paste(new_sheet$ParticipantID, new_sheet$Time)),
           Condition) |>

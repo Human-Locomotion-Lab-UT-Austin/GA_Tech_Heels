@@ -10,7 +10,8 @@
 # Research questions
 #   Q1. Did AT stiffness change from Pre to Post within each group, and did the
 #       change differ between Users and Nonusers?
-#   Q2. Did walking in heels change peak ground reaction force (GRF), effective
+#   Q2. Did walking in heels change peak ground reaction force (GRF; the
+#       largest peak, and the impact and push-off peaks separately), effective
 #       mechanical advantage (EMA), peak AT force, peak AT strain, mean AT
 #       strain, and AT strain impulse relative to flats?
 #   Q3. Did the change in AT stiffness scale with daily steps in heels
@@ -340,6 +341,8 @@ footwear_diff_by_time <- d |>
   transmute(
     ParticipantID, Time,
     peak_Fr_diff        = (heels_peak_Fr - flats_peak_Fr) / (Mass * g),  # body weights (BW)
+    impact_Fr_diff      = (heels_impact_Fr - flats_impact_Fr) / (Mass * g),   # BW, first-half GRF peak
+    pushoff_Fr_diff     = (heels_pushoff_Fr - flats_pushoff_Fr) / (Mass * g), # BW, second-half GRF peak
     EMA_pushoff_diff    = heels_EMA_pushoff - flats_EMA_pushoff,         # EMA at push-off GRF peak
     peak_Fmtu_diff      = (heels_peak_Fmtu - flats_peak_Fmtu) / (Mass * g), # BW
     peak_strain_diff    = heels_peak_strain - flats_peak_strain,         # % strain
@@ -354,6 +357,8 @@ footwear_diff <- footwear_diff_by_time |>
   summarize(across(ends_with("_diff"), ~ mean(.x, na.rm = TRUE)))
 
 peak_GRF_test       <- sign_flip_test(footwear_diff$peak_Fr_diff)
+impact_GRF_test     <- sign_flip_test(footwear_diff$impact_Fr_diff)
+pushoff_GRF_test    <- sign_flip_test(footwear_diff$pushoff_Fr_diff)
 EMA_test            <- sign_flip_test(footwear_diff$EMA_pushoff_diff)
 peak_Fmtu_test      <- sign_flip_test(footwear_diff$peak_Fmtu_diff)
 strain_impulse_test <- sign_flip_test(footwear_diff$strain_impulse_diff)
@@ -381,6 +386,8 @@ perm_results <- list(
   "Stiffness change, Users"            = stiffness_user_test,
   "Stiffness change, Nonusers"         = stiffness_nonuser_test,
   "Peak GRF, heels - flats"            = peak_GRF_test,
+  "Impact peak GRF, heels - flats"     = impact_GRF_test,
+  "Push-off peak GRF, heels - flats"   = pushoff_GRF_test,
   "EMA at push-off GRF peak, heels - flats" = EMA_test,
   "Peak AT force, heels - flats"       = peak_Fmtu_test,
   "Strain impulse, heels - flats"      = strain_impulse_test,
@@ -1135,6 +1142,8 @@ md_table <- function(df) c(knitr::kable(df, format = "pipe", align = "l"), "")
 footwear_measures <- tribble(
   ~measure,              ~label,                          ~units,    ~digits,
   "peak_Fr_diff",        "Peak resultant GRF",            "BW",      3,
+  "impact_Fr_diff",      "Impact peak GRF (first half)",  "BW",      3,
+  "pushoff_Fr_diff",     "Push-off peak GRF (second half)", "BW",    3,
   "EMA_pushoff_diff",    "EMA at push-off GRF peak",      "r/R",     3,
   "peak_Fmtu_diff",      "Peak AT force",                 "BW",      2,
   "peak_strain_diff",    "Peak AT strain",                "%",       2,
@@ -1149,6 +1158,8 @@ footwear_levels <- d |>
   transmute(
     ParticipantID, Time,
     heels_peak_Fr        = heels_peak_Fr / (Mass * g),   flats_peak_Fr   = flats_peak_Fr / (Mass * g),
+    heels_impact_Fr      = heels_impact_Fr / (Mass * g), flats_impact_Fr = flats_impact_Fr / (Mass * g),
+    heels_pushoff_Fr     = heels_pushoff_Fr / (Mass * g), flats_pushoff_Fr = flats_pushoff_Fr / (Mass * g),
     heels_EMA_pushoff,   flats_EMA_pushoff,
     heels_peak_Fmtu      = heels_peak_Fmtu / (Mass * g), flats_peak_Fmtu = flats_peak_Fmtu / (Mass * g),
     heels_peak_strain,   flats_peak_strain,
@@ -1165,7 +1176,8 @@ footwear_levels <- d |>
   summarize(n_levels = n(), flats_mean = mean(flats), flats_sd = sd(flats),
             heels_mean = mean(heels), heels_sd = sd(heels))
 
-q2_tests <- list(peak_Fr_diff = peak_GRF_test, EMA_pushoff_diff = EMA_test,
+q2_tests <- list(peak_Fr_diff = peak_GRF_test, impact_Fr_diff = impact_GRF_test,
+                 pushoff_Fr_diff = pushoff_GRF_test, EMA_pushoff_diff = EMA_test,
                  peak_Fmtu_diff = peak_Fmtu_test, peak_strain_diff = peak_strain_test,
                  mean_strain_diff = mean_strain_test, strain_impulse_diff = strain_impulse_test) |>
   map(as_tibble) |>
@@ -1283,7 +1295,7 @@ summary_lines <- c(
   "",
   "- All tests are two-sided permutation tests with the null distribution enumerated exactly (every possible sign combination, group assignment or pairing), at alpha = 0.05.",
   "- **Q1 (stiffness change):** the primary test compares the mean Pre to Post % change in linear AT stiffness between Users and Nonusers (group labels reassigned; 70 possible assignments). The 95% CI is Welch's; Cohen's d uses the pooled SD. Within-group changes are descriptive: with 4 participants the sign-flip test cannot give P below 0.125.",
-  "- **Q2 (heels vs flats):** sign-flip test on each participant's heels - flats difference, averaged across the Pre and Post visits that had both conditions. 95% CIs are t-based. Robustness: the same test within each visit separately.",
+  "- **Q2 (heels vs flats):** sign-flip test on each participant's heels - flats difference, averaged across the Pre and Post visits that had both conditions. 95% CIs are t-based. Robustness: the same test within each visit separately. GRF peaks are of the resultant GRF in each stance: peak = the largest peak; impact peak = the highest peak in the first half of stance (the weight-acceptance peak, ~25% of stance; the brief heel-strike transient is removed by the 10 Hz filter); push-off peak = the highest peak in the second half (~75-80%). Both peaks were found in every stance analyzed.",
   "- **Q3 (dose-response):** simple linear regression of % change in stiffness on daily steps in heels. The slope is tested by permuting the outcomes across participants (8! = 40,320 pairings); its 95% CI is t-based and r's 95% CI uses Fisher's z. P (regression) is the conventional t-test P from the linear model, shown for comparison.",
   "- **Min. attainable P** is the smallest P value the design can produce for that test.",
   "- GRF and AT force are in body weights (BW). Summary values are calculated within each stance (heel strike to toe-off) and averaged over the 12-15 stances of each 15 s walking trial at 1.3 m/s.",
