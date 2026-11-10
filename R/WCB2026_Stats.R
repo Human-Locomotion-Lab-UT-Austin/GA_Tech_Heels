@@ -48,6 +48,7 @@
 # Outputs
 #   output/statistics_summary.md  every statistic below in one readable sheet
 #   output/tables/ (CSV): baseline_characteristics, step_counts_by_group,
+#   step_counts_group_tests,
 #   permutation_tests, footwear_tests, footwear_tests_by_visit, regressions
 #   output/figures/ (PDF):
 #   users_vs_nonusers_stiffness_fig.pdf, flats_vs_heels_kinetics_fig.pdf,
@@ -745,6 +746,26 @@ step_summary <- step_counts |>
 print(step_summary, width = Inf)
 write_csv(step_summary, file.path(table_dir, "step_counts_by_group.csv"))
 
+# Between-group comparison of step counts (Users - Nonusers), using the same
+# exact group permutation test as Q1. Participants without a step count are
+# dropped, so total steps compares 3 vs 3 (20 possible assignments, smallest
+# attainable P = 0.1).
+# Steps in heels: the groups were defined by daily steps in heels (Users
+# > 1,500, Nonusers < 1,000), so this difference is expected by design. The
+# test documents the size of the exposure contrast; it is not a finding.
+# Total steps: checks that the groups were similarly active overall, so a
+# stiffness difference is not explained by Users simply walking more. A
+# non-significant P with n = 3 per group does not show the groups were
+# equivalent; report the difference and its CI.
+step_group_tests <- list(
+  "Steps in heels per day" = group_perm_test(step_counts$HTDSteps, step_counts$Compliance),
+  "Total steps per day"    = group_perm_test(step_counts$TotalSteps, step_counts$Compliance)
+) |>
+  map(as_tibble) |>
+  bind_rows(.id = "measure")
+print(step_group_tests, width = Inf)
+write_csv(step_group_tests, file.path(table_dir, "step_counts_group_tests.csv"))
+
 # Bar = group mean, error bar = SE, points = individual participants.
 # Participants with no step data (NA) are left out of that panel.
 steps_fig <- function(y, title, y_max, y_step) {
@@ -1159,16 +1180,32 @@ tbl_baseline <- baseline_table |>
   select(-Group) |>
   rename(` ` = Participant)
 
-tbl_steps <- step_summary |>
+# One row per measure: each group's n, mean (SD) and range, then the
+# Users - Nonusers difference with its Welch 95% CI, Cohen's d and permutation P
+step_group_cells <- step_summary |>
+  transmute(
+    measure,
+    group = if_else(Compliance == "User", "Users", "Nonusers"),
+    cell = paste0(fmt(mean, 0), " (", fmt(sd, 0), ")<br>",
+                  fmt(min, 0), " to ", fmt(max, 0), "<br>n = ", n)
+  ) |>
+  pivot_wider(names_from = group, values_from = cell)
+
+tbl_steps <- step_group_cells |>
+  left_join(step_group_tests, by = "measure") |>
   transmute(
     Measure = measure,
-    Group = if_else(Compliance == "User", "Users", "Nonusers"),
-    n,
-    `Mean (SD)` = paste0(fmt(mean, 0), " (", fmt(sd, 0), ")"),
-    Range = paste0(fmt(min, 0), " to ", fmt(max, 0)),
-    `Missing` = if_else(missing == "", "none", missing)
-  ) |>
-  arrange(Measure, desc(Group))
+    `Users: mean (SD), range` = Users,
+    `Nonusers: mean (SD), range` = Nonusers,
+    `Users - Nonusers (95% CI)` = fmt_mean_ci(obs_diff, ci_low, ci_high, 0),
+    `Cohen's d` = fmt(cohens_d, 2),
+    P = fmt_pval(p_val),
+    `Min. attainable P` = fmt_pval(min_p)
+  )
+steps_missing <- step_summary |>
+  filter(missing != "") |>
+  group_by(measure) |>
+  summarize(ids = paste(sort(missing), collapse = " and "))
 
 q1_rows <- list(Users = stiffness_user_test, Nonusers = stiffness_nonuser_test,
                 `Users - Nonusers` = stiffness_group_test)
@@ -1252,7 +1289,14 @@ summary_lines <- c(
   "**Table 1.** Baseline characteristics at the Pre visit, mean (SD). Individual values are in `output/tables/baseline_characteristics.csv`.",
   "",
   md_table(tbl_baseline),
-  "**Table 2.** Daily step counts during the intervention, one average per participant.",
+  paste0("**Table 2.** Daily step counts during the intervention (one average per participant) ",
+         "and the Users - Nonusers difference (exact group permutation test; Welch 95% CI). ",
+         paste0(steps_missing$ids, " have no ", tolower(steps_missing$measure), " count",
+                collapse = "; "), ". ",
+         "Groups were defined by steps in heels (Users > 1,500/day, Nonusers < 1,000/day), ",
+         "so that difference is expected by design and shows the size of the exposure contrast. ",
+         "The total steps comparison checks whether the groups differed in overall activity; ",
+         "with 3 per group a non-significant P does not show the groups were equivalent."),
   "",
   md_table(tbl_steps),
   "## 2. Q1: Change in AT stiffness, Pre to Post",

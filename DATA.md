@@ -199,6 +199,8 @@ by `build_participant_data_sheet.R`.
   each participant, with mean (SD) by group.
 - `output/tables/step_counts_by_group.csv`: daily steps in heels and total
   daily steps by group (n, mean, SD, range, participants missing).
+- `output/tables/step_counts_group_tests.csv`: Users - Nonusers comparison
+  of each step count (difference, Welch 95% CI, Cohen's d, permutation P).
 - `output/tables/permutation_tests.csv`, `footwear_tests.csv`,
   `footwear_tests_by_visit.csv`, `regressions.csv`: the test results in
   machine-readable form.
