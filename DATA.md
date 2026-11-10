@@ -94,7 +94,7 @@ in the 15 s trial. `NaN` means no data.
 | `mean_lin_strain_impulse` | % strain · s | Integral of AT strain over time from heel strike to toe-off of each stance, averaged over stances |
 | `mean_peak_lin_strain` | % | Peak AT strain per stance, averaged over stances |
 | `mean_lin_strain` | % | Mean AT strain within each stance (heel strike to toe-off), averaged over stances |
-| `mean_peak_Fr` | N | Peak resultant GRF per stance, averaged over stances |
+| `mean_peak_Fr` | N | Largest resultant GRF peak per stance, averaged over stances. Kept for reference but not analyzed: it is the impact peak in most trials and the push-off peak in others, so `mean_impact_Fr` and `mean_pushoff_Fr` are analyzed instead |
 | `mean_impact_Fr` | N | Impact peak: the highest resultant GRF peak in the first half of each stance (the weight-acceptance peak, ~25% of stance; the 10 Hz filter removes the brief heel-strike transient), averaged over stances |
 | `mean_pushoff_Fr` | N | Push-off peak: the highest resultant GRF peak in the second half of each stance (~75-80%), averaged over stances |
 | `mean_peak_Fmtu` | N | Peak AT (muscle–tendon unit) force per stance, averaged over stances |
@@ -192,7 +192,7 @@ by `build_participant_data_sheet.R`.
 |---|---|---|
 | `ParticipantID`, `Condition` (`Flats` / `Heels`), `Time` | n/a | |
 | `EMA`, `EMA_pushoff`, `strain_impulse`, `peak_strain`, `mean_strain` | as above | |
-| `peak_Fr` | body weights | Peak resultant GRF ÷ (`Mass` × 9.81) |
+| `peak_Fr` | body weights | Largest resultant GRF peak ÷ (`Mass` × 9.81) (not analyzed; see `mean_peak_Fr`) |
 | `impact_Fr`, `pushoff_Fr` | body weights | Impact and push-off GRF peaks ÷ (`Mass` × 9.81) |
 | `peak_Fmtu` | body weights | Peak AT force ÷ (`Mass` × 9.81) |
 

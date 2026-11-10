@@ -10,8 +10,8 @@
 # Research questions
 #   Q1. Did AT stiffness change from Pre to Post within each group, and did the
 #       change differ between Users and Nonusers?
-#   Q2. Did walking in heels change peak ground reaction force (GRF; the
-#       largest peak, and the impact and push-off peaks separately), effective
+#   Q2. Did walking in heels change the impact and push-off peaks of the
+#       ground reaction force (GRF), effective
 #       mechanical advantage (EMA), peak AT force, peak AT strain, mean AT
 #       strain, and AT strain impulse relative to flats?
 #   Q3. Did the change in AT stiffness scale with daily steps in heels
@@ -37,7 +37,8 @@
 #     in heels (primary), reported as the change per 1,000 steps/day with a
 #     95% CI and tested with an exact permutation test of the slope (all 8!
 #     pairings of outcomes with step counts). Supplementary: the heels - flats
-#     difference in peak GRF averaged across visits, reported as r with a 95% CI.
+#     difference in push-off peak GRF averaged across visits, reported as r
+#     with a 95% CI.
 #
 # Inputs
 #   data/analysis/participant_data_sheet_R.csv  one row per participant x timepoint
@@ -56,7 +57,7 @@
 #   users_vs_nonusers_steps_fig.pdf, flats_vs_heels_grf_ema_combined_fig.pdf,
 #   flats_vs_heels_strain_stance_fig.pdf, flats_vs_heels_stance_summary_fig.pdf,
 #   htd_steps_reg_fig.pdf,
-#   supp_peak_grf_reg_fig.pdf
+#   supp_pushoff_grf_reg_fig.pdf
 # =============================================================================
 
 
@@ -340,8 +341,7 @@ stiffness_nonuser_test <- sign_flip_test(nonusers$k_lin)
 footwear_diff_by_time <- d |>
   transmute(
     ParticipantID, Time,
-    peak_Fr_diff        = (heels_peak_Fr - flats_peak_Fr) / (Mass * g),  # body weights (BW)
-    impact_Fr_diff      = (heels_impact_Fr - flats_impact_Fr) / (Mass * g),   # BW, first-half GRF peak
+    impact_Fr_diff      = (heels_impact_Fr - flats_impact_Fr) / (Mass * g),   # body weights (BW), first-half GRF peak
     pushoff_Fr_diff     = (heels_pushoff_Fr - flats_pushoff_Fr) / (Mass * g), # BW, second-half GRF peak
     EMA_pushoff_diff    = heels_EMA_pushoff - flats_EMA_pushoff,         # EMA at push-off GRF peak
     peak_Fmtu_diff      = (heels_peak_Fmtu - flats_peak_Fmtu) / (Mass * g), # BW
@@ -356,7 +356,6 @@ footwear_diff <- footwear_diff_by_time |>
   group_by(ParticipantID) |>
   summarize(across(ends_with("_diff"), ~ mean(.x, na.rm = TRUE)))
 
-peak_GRF_test       <- sign_flip_test(footwear_diff$peak_Fr_diff)
 impact_GRF_test     <- sign_flip_test(footwear_diff$impact_Fr_diff)
 pushoff_GRF_test    <- sign_flip_test(footwear_diff$pushoff_Fr_diff)
 EMA_test            <- sign_flip_test(footwear_diff$EMA_pushoff_diff)
@@ -385,7 +384,6 @@ perm_results <- list(
   "Stiffness change, Users - Nonusers" = stiffness_group_test,
   "Stiffness change, Users"            = stiffness_user_test,
   "Stiffness change, Nonusers"         = stiffness_nonuser_test,
-  "Peak GRF, heels - flats"            = peak_GRF_test,
   "Impact peak GRF, heels - flats"     = impact_GRF_test,
   "Push-off peak GRF, heels - flats"   = pushoff_GRF_test,
   "EMA at push-off GRF peak, heels - flats" = EMA_test,
@@ -407,11 +405,11 @@ print(perm_results, width = Inf)
 # Combined with Q2 (strain was lower in heels than flats in every participant),
 # this tests whether heel use was associated with stiffening even though it
 # lowered AT strain per step.
-# Supplementary predictor: heels - flats difference in peak GRF (BW), the
-# loading variable that was higher in heels (Q2), averaged across the Pre and
-# Post visits (the same per-participant values as the Q2 test, footwear_diff).
+# Supplementary predictor: heels - flats difference in push-off peak GRF (BW),
+# the GRF peak at which AT force is highest, averaged across the Pre and Post
+# visits (the same per-participant values as the Q2 test, footwear_diff).
 # Reported as r with a 95% CI only. See the limitations listed with
-# peak_grf_reg_fig in section 10 before interpreting it.
+# pushoff_grf_reg_fig in section 10 before interpreting it.
 # Not analyzed: heels - flats differences in AT strain. Nonusers did not wear
 # heels consistently, so a regression of stiffening on strain across all
 # participants mixes exposed and unexposed tendons and is not interpretable;
@@ -425,13 +423,13 @@ predictor_data <- d |>
   filter(Time == "Post") |> # step counts are identical on Pre and Post rows
   select(ParticipantID, htd_steps = HTDSteps) |>
   mutate(htd_steps = htd_steps / 1000) |> # thousands of steps/day
-  left_join(select(footwear_diff, ParticipantID, peak_Fr_diff), by = "ParticipantID")
+  left_join(select(footwear_diff, ParticipantID, pushoff_Fr_diff), by = "ParticipantID")
 
 reg_data <- left_join(diff_data, predictor_data, by = "ParticipantID")
 
 # One simple linear regression per predictor: % change in stiffness ~ predictor
 primary_predictor        <- "htd_steps"
-supplementary_predictors <- "peak_Fr_diff"
+supplementary_predictors <- "pushoff_Fr_diff"
 
 reg_models <- c(primary_predictor, supplementary_predictors) |>
   set_names() |>
@@ -579,35 +577,37 @@ htd_steps_reg_fig <- reg_fig(
 htd_steps_reg_fig
 save_fig(htd_steps_reg_fig, "htd_steps_reg_fig.pdf", width = 11.24, height = 7.86)
 
-# Supplementary: heels - flats difference in peak GRF, averaged across the Pre
-# and Post visits.
+# Supplementary: heels - flats difference in push-off peak GRF, averaged across
+# the Pre and Post visits.
 #
 # Limitations for interpretation (state these in the figure legend):
 #   1. Nonusers did not wear heels consistently, so their heels - flats GRF
 #      difference was measured in the lab but was not a load their tendons
 #      received during the intervention. Nonusers are 4 of the 7 points, and
-#      two of them (GP04, RL10) combine some of the largest GRF differences
-#      with the largest stiffness losses (about -15%), which pulls the slope
-#      negative. The correlation may therefore reflect the group difference
-#      rather than an effect of GRF.
+#      two of them (GP04, RL10) combine the largest decreases in push-off GRF
+#      in heels with the largest stiffness losses (about -15%). GP04 in
+#      particular (about -0.15 BW, three times any other participant) pulls the
+#      slope positive. The correlation may therefore reflect the group
+#      difference and one participant rather than an effect of GRF.
 #   2. Only 3 Users have GRF data (DF07 has none), too few to assess the
 #      relationship within the participants who actually wore heels.
 #   3. Values are not equally precise: 5 participants are averaged over two
 #      visits, while BO11 and GJ03 have only Post data.
-#   4. GRF is the external load, not the tendon load. AT strain was lower in
-#      heels in every participant (Q2) even though peak GRF was higher, so a
-#      larger GRF difference does not mean a larger tendon stimulus.
+#   4. GRF is the external load, not the tendon load. The push-off peak is
+#      closer to the time of peak AT force than the impact peak, but AT force
+#      also depends on the GRF moment arm, which heels shortened (EMA was
+#      higher in heels, Q2).
 #   5. Lab walking trials do not capture daily loading (number of steps in
 #      heels), and with n = 7 the 95% CI for r is wide and includes zero. The
 #      figure is descriptive: it is not a test, and it does not show causation.
-peak_grf_reg_fig <- reg_fig(
-  "peak_Fr_diff",
-  expression(paste(Delta, "Peak GRF (Heels - Flats) (BW)")),
-  scale_x_continuous(breaks = seq(-0.05, 0.15, by = 0.05), limits = c(-0.05, 0.15)),
-  title = "Peak GRF"
+pushoff_grf_reg_fig <- reg_fig(
+  "pushoff_Fr_diff",
+  expression(paste(Delta, "Push-off Peak GRF (Heels - Flats) (BW)")),
+  scale_x_continuous(breaks = seq(-0.20, 0.05, by = 0.05), limits = c(-0.20, 0.05)),
+  title = "Push-off Peak GRF"
 )
-peak_grf_reg_fig
-save_fig(peak_grf_reg_fig, "supp_peak_grf_reg_fig.pdf", width = 11.24, height = 7.86)
+pushoff_grf_reg_fig
+save_fig(pushoff_grf_reg_fig, "supp_pushoff_grf_reg_fig.pdf", width = 11.24, height = 7.86)
 
 
 # 11. Figure: Q1 AT stiffness, Users vs Nonusers -------------------------------
@@ -706,8 +706,8 @@ footwear_fig <- function(y, title, test, y_label, y_limits) {
     theme_footwear
 }
 
-peak_forces_fig    <- footwear_fig(peak_Fr, "Peak GRFs", peak_GRF_test,
-                                   "Resultant GRFs (BW)", c(1.1, 1.45))
+peak_forces_fig    <- footwear_fig(pushoff_Fr, "Push-off Peak GRF", pushoff_GRF_test,
+                                   "Resultant GRF (BW)", c(0.95, 1.35))
 peak_strain_fig    <- footwear_fig(peak_strain, "Peak Strain", peak_strain_test,
                                    "Peak Tendon Strain (%)", c(2.5, 10))
 mean_strain_fig    <- footwear_fig(mean_strain, "Mean Strain", mean_strain_test,
@@ -1099,7 +1099,7 @@ summary_box_panel <- function(y, title, test, y_label) {
 
 stance_summary_fig <- plot_grid(
   stance_panel(grf, "Ground Reaction Force", "GRF (BW)", show_legend = TRUE),
-  summary_box_panel(peak_Fr, "Peak GRF", peak_GRF_test, "Peak GRF (BW)"),
+  summary_box_panel(pushoff_Fr, "Push-off Peak GRF", pushoff_GRF_test, "Push-off Peak GRF (BW)"),
   stance_panel(ema, "Effective Mechanical Advantage", "EMA (r/R)",
                y_scale = scale_y_continuous(limits = c(0, ema_ymax),
                                             breaks = seq(0, ema_ymax, by = 0.25))),
@@ -1141,7 +1141,6 @@ md_table <- function(df) c(knitr::kable(df, format = "pipe", align = "l"), "")
 # Heels - flats outcomes: labels, units and decimal places
 footwear_measures <- tribble(
   ~measure,              ~label,                          ~units,    ~digits,
-  "peak_Fr_diff",        "Peak resultant GRF",            "BW",      3,
   "impact_Fr_diff",      "Impact peak GRF (first half)",  "BW",      3,
   "pushoff_Fr_diff",     "Push-off peak GRF (second half)", "BW",    3,
   "EMA_pushoff_diff",    "EMA at push-off GRF peak",      "r/R",     3,
@@ -1157,7 +1156,6 @@ footwear_measures <- tribble(
 footwear_levels <- d |>
   transmute(
     ParticipantID, Time,
-    heels_peak_Fr        = heels_peak_Fr / (Mass * g),   flats_peak_Fr   = flats_peak_Fr / (Mass * g),
     heels_impact_Fr      = heels_impact_Fr / (Mass * g), flats_impact_Fr = flats_impact_Fr / (Mass * g),
     heels_pushoff_Fr     = heels_pushoff_Fr / (Mass * g), flats_pushoff_Fr = flats_pushoff_Fr / (Mass * g),
     heels_EMA_pushoff,   flats_EMA_pushoff,
@@ -1176,7 +1174,7 @@ footwear_levels <- d |>
   summarize(n_levels = n(), flats_mean = mean(flats), flats_sd = sd(flats),
             heels_mean = mean(heels), heels_sd = sd(heels))
 
-q2_tests <- list(peak_Fr_diff = peak_GRF_test, impact_Fr_diff = impact_GRF_test,
+q2_tests <- list(impact_Fr_diff = impact_GRF_test,
                  pushoff_Fr_diff = pushoff_GRF_test, EMA_pushoff_diff = EMA_test,
                  peak_Fmtu_diff = peak_Fmtu_test, peak_strain_diff = peak_strain_test,
                  mean_strain_diff = mean_strain_test, strain_impulse_diff = strain_impulse_test) |>
@@ -1267,9 +1265,9 @@ tbl_q2_visits <- footwear_by_time |>
     `Min. attainable P` = fmt_pval(min_p)
   )
 
-# Table 6 reports the primary predictor only. The supplementary peak GRF
+# Table 6 reports the primary predictor only. The supplementary push-off GRF
 # regression stays in reg_results (output/tables/regressions.csv) and its
-# figure, supp_peak_grf_reg_fig.pdf.
+# figure, supp_pushoff_grf_reg_fig.pdf.
 tbl_q3 <- reg_results |>
   filter(role == "primary") |>
   transmute(
@@ -1295,7 +1293,7 @@ summary_lines <- c(
   "",
   "- All tests are two-sided permutation tests with the null distribution enumerated exactly (every possible sign combination, group assignment or pairing), at alpha = 0.05.",
   "- **Q1 (stiffness change):** the primary test compares the mean Pre to Post % change in linear AT stiffness between Users and Nonusers (group labels reassigned; 70 possible assignments). The 95% CI is Welch's; Cohen's d uses the pooled SD. Within-group changes are descriptive: with 4 participants the sign-flip test cannot give P below 0.125.",
-  "- **Q2 (heels vs flats):** sign-flip test on each participant's heels - flats difference, averaged across the Pre and Post visits that had both conditions. 95% CIs are t-based. Robustness: the same test within each visit separately. GRF peaks are of the resultant GRF in each stance: peak = the largest peak; impact peak = the highest peak in the first half of stance (the weight-acceptance peak, ~25% of stance; the brief heel-strike transient is removed by the 10 Hz filter); push-off peak = the highest peak in the second half (~75-80%). Both peaks were found in every stance analyzed.",
+  "- **Q2 (heels vs flats):** sign-flip test on each participant's heels - flats difference, averaged across the Pre and Post visits that had both conditions. 95% CIs are t-based. Robustness: the same test within each visit separately. GRF peaks are of the resultant GRF in each stance: impact peak = the highest peak in the first half of stance (the weight-acceptance peak, ~25% of stance; the brief heel-strike transient is removed by the 10 Hz filter); push-off peak = the highest peak in the second half (~75-80%). Both peaks were found in every stance analyzed.",
   "- **Q3 (dose-response):** simple linear regression of % change in stiffness on daily steps in heels. The slope is tested by permuting the outcomes across participants (8! = 40,320 pairings); its 95% CI is t-based and r's 95% CI uses Fisher's z. P (regression) is the conventional t-test P from the linear model, shown for comparison.",
   "- **Min. attainable P** is the smallest P value the design can produce for that test.",
   "- GRF and AT force are in body weights (BW). Summary values are calculated within each stance (heel strike to toe-off) and averaged over the 12-15 stances of each 15 s walking trial at 1.3 m/s.",
