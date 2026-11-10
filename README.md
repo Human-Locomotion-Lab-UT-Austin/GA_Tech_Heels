@@ -61,7 +61,7 @@ GA_Tech_Heels/
 │   ├── params/       per-visit tendon parameters used by the MATLAB pipeline
 │   ├── processed/    MATLAB output
 │   └── analysis/     R input
-├── output/           figures (tracked) and tables (not tracked) written by WCB2026_Stats.R
+├── output/           written by WCB2026_Stats.R: statistics_summary.md and figures/ (tracked), tables/ (not tracked)
 └── docs/
     └── WCB2026_poster.pdf
 ```
@@ -76,7 +76,7 @@ repository root, so the scripts run from a fresh clone without editing.
 | 1 | `matlab/run_batch_analysis.m` | `data/raw/*.mat`, `data/params/participant_params_Day{1,3}.csv` | `data/processed/batch_results_{heels,flats}_{Day1,Day3}.csv` |
 | 2 | `matlab/run_batch_stance_curves.m` | same as step 1 | `data/processed/stance_curves.csv` |
 | 3 | `R/build_participant_data_sheet.R` | `data/processed/batch_results_*.csv`, existing `data/analysis/participant_data_sheet_R.csv` | `data/analysis/participant_data_sheet_R.csv`, `data/analysis/heels_flats_comp.csv` |
-| 4 | `R/WCB2026_Stats.R` | `data/analysis/*.csv`, `data/processed/stance_curves.csv` | `output/figures/*.pdf`, `output/tables/baseline_characteristics.csv` |
+| 4 | `R/WCB2026_Stats.R` | `data/analysis/*.csv`, `data/processed/stance_curves.csv` | `output/statistics_summary.md`, `output/figures/*.pdf`, `output/tables/*.csv` |
 
 - **Running only the statistics:** the processed and analysis files are
   included in the repository, so step 4 runs on its own without the raw data
@@ -149,6 +149,7 @@ Versions used for the poster analysis:
   | cowplot | 1.2.0 |
   | scales | 1.4.0 |
   | here | 1.0.2 |
+  | knitr | 1.50 |
   | rstudioapi (optional, used when running lines in RStudio) | 0.17.1 |
 
 ## Notes on the data

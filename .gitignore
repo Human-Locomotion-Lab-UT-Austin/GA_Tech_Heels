@@ -17,9 +17,11 @@ data/raw/*
 !data/raw/README.md
 
 # Generated output: recreate with R/WCB2026_Stats.R. Figures are tracked so the
-# current versions are in the repository; tables are not.
+# current versions are in the repository, as is the statistics summary
+# sheet; the CSV tables are not.
 output/*
 !output/figures/
+!output/statistics_summary.md
 
 # Backups written by R/build_participant_data_sheet.R
 *_backup_*.csv

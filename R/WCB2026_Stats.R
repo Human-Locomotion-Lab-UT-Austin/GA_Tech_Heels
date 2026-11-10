@@ -46,7 +46,9 @@
 #                                               visit and condition (run_batch_stance_curves.m)
 #
 # Outputs
-#   output/tables/baseline_characteristics.csv
+#   output/statistics_summary.md  every statistic below in one readable sheet
+#   output/tables/ (CSV): baseline_characteristics, step_counts_by_group,
+#   permutation_tests, footwear_tests, footwear_tests_by_visit, regressions
 #   output/figures/ (PDF):
 #   users_vs_nonusers_stiffness_fig.pdf, flats_vs_heels_kinetics_fig.pdf,
 #   users_vs_nonusers_steps_fig.pdf, flats_vs_heels_grf_ema_combined_fig.pdf,
@@ -724,6 +726,25 @@ step_counts <- d |>
   )
 stopifnot(all(step_counts$n_values == 2)) # Pre and Post rows must hold the same step counts
 
+# Mean, SD and range of daily step counts by group (one value per participant).
+# Participants without a step count are left out and n shows how many remain.
+step_summary <- step_counts |>
+  pivot_longer(c(HTDSteps, TotalSteps), names_to = "measure", values_to = "steps") |>
+  mutate(measure = recode(measure, HTDSteps = "Steps in heels per day",
+                          TotalSteps = "Total steps per day")) |>
+  group_by(measure, Compliance) |>
+  summarize(
+    n       = sum(!is.na(steps)),
+    mean    = mean(steps, na.rm = TRUE),
+    sd      = sd(steps, na.rm = TRUE),
+    min     = min(steps, na.rm = TRUE),
+    max     = max(steps, na.rm = TRUE),
+    missing = paste(ParticipantID[is.na(steps)], collapse = ", "),
+    .groups = "drop"
+  )
+print(step_summary, width = Inf)
+write_csv(step_summary, file.path(table_dir, "step_counts_by_group.csv"))
+
 # Bar = group mean, error bar = SE, points = individual participants.
 # Participants with no step data (NA) are left out of that panel.
 steps_fig <- function(y, title, y_max, y_step) {
@@ -1062,7 +1083,215 @@ stance_summary_fig
 save_fig(stance_summary_fig, "flats_vs_heels_stance_summary_fig.pdf", width = 12, height = 16)
 
 
+# 18. Statistics summary sheet --------------------------------------------------
+
+# Collects every statistic computed above into one readable sheet,
+# output/statistics_summary.md, and writes the underlying tables to
+# output/tables/ as CSV. The sheet is regenerated on every run: edit this
+# section, not the .md file.
+
+# Formatting helpers
+# (digits may differ by row, so each value is formatted separately)
+fmt <- function(x, digits, flag = "") {
+  map2_chr(x, rep_len(digits, length(x)), function(v, dg) {
+    if (is.na(v)) "n/a" else formatC(v, digits = dg, format = "f", big.mark = ",", flag = flag)
+  })
+}
+fmt_s <- function(x, digits) fmt(x, digits, flag = "+")
+fmt_mean_ci <- function(est, lo, hi, digits) {
+  paste0(fmt_s(est, digits), " (", fmt_s(lo, digits), " to ", fmt_s(hi, digits), ")")
+}
+fmt_pval <- function(p) {
+  case_when(is.na(p) ~ "n/a", p < 0.001 ~ "< 0.001", TRUE ~ formatC(p, digits = 3, format = "f"))
+}
+md_table <- function(df) c(knitr::kable(df, format = "pipe", align = "l"), "")
+
+# Heels - flats outcomes: labels, units and decimal places
+footwear_measures <- tribble(
+  ~measure,              ~label,                          ~units,    ~digits,
+  "peak_Fr_diff",        "Peak resultant GRF",            "BW",      3,
+  "EMA_pushoff_diff",    "EMA at push-off GRF peak",      "r/R",     3,
+  "peak_Fmtu_diff",      "Peak AT force",                 "BW",      2,
+  "peak_strain_diff",    "Peak AT strain",                "%",       2,
+  "mean_strain_diff",    "Mean AT strain (stance)",       "%",       2,
+  "strain_impulse_diff", "AT strain impulse",             "% · s",   2
+)
+
+# Flats and heels values for the same participants and visits as the Q2 tests:
+# each participant's mean over the visits with both conditions, then the group
+# mean (SD). heels mean - flats mean equals the tested mean difference.
+footwear_levels <- d |>
+  transmute(
+    ParticipantID, Time,
+    heels_peak_Fr        = heels_peak_Fr / (Mass * g),   flats_peak_Fr   = flats_peak_Fr / (Mass * g),
+    heels_EMA_pushoff,   flats_EMA_pushoff,
+    heels_peak_Fmtu      = heels_peak_Fmtu / (Mass * g), flats_peak_Fmtu = flats_peak_Fmtu / (Mass * g),
+    heels_peak_strain,   flats_peak_strain,
+    heels_mean_strain,   flats_mean_strain,
+    heels_strain_impulse, flats_strain_impulse
+  ) |>
+  pivot_longer(-c(ParticipantID, Time), names_to = c("condition", "measure"),
+               names_pattern = "^(heels|flats)_(.*)$") |>
+  pivot_wider(names_from = condition, values_from = value) |>
+  filter(!is.na(heels), !is.na(flats)) |>
+  group_by(measure, ParticipantID) |>
+  summarize(heels = mean(heels), flats = mean(flats), .groups = "drop") |>
+  group_by(measure = paste0(measure, "_diff")) |>
+  summarize(n_levels = n(), flats_mean = mean(flats), flats_sd = sd(flats),
+            heels_mean = mean(heels), heels_sd = sd(heels))
+
+q2_tests <- list(peak_Fr_diff = peak_GRF_test, EMA_pushoff_diff = EMA_test,
+                 peak_Fmtu_diff = peak_Fmtu_test, peak_strain_diff = peak_strain_test,
+                 mean_strain_diff = mean_strain_test, strain_impulse_diff = strain_impulse_test) |>
+  map(as_tibble) |>
+  bind_rows(.id = "measure")
+
+q2_summary <- footwear_measures |>
+  left_join(footwear_levels, by = "measure") |>
+  left_join(q2_tests, by = "measure")
+stopifnot(all(q2_summary$n_levels == q2_summary$n),
+          all(abs(q2_summary$heels_mean - q2_summary$flats_mean - q2_summary$obs_diff) < 1e-9))
+
+# --- Tables for the sheet ---
+
+tbl_baseline <- baseline_table |>
+  filter(str_detect(Participant, "mean \\(SD\\)")) |>
+  select(-Group) |>
+  rename(` ` = Participant)
+
+tbl_steps <- step_summary |>
+  transmute(
+    Measure = measure,
+    Group = if_else(Compliance == "User", "Users", "Nonusers"),
+    n,
+    `Mean (SD)` = paste0(fmt(mean, 0), " (", fmt(sd, 0), ")"),
+    Range = paste0(fmt(min, 0), " to ", fmt(max, 0)),
+    `Missing` = if_else(missing == "", "none", missing)
+  ) |>
+  arrange(Measure, desc(Group))
+
+q1_rows <- list(Users = stiffness_user_test, Nonusers = stiffness_nonuser_test,
+                `Users - Nonusers` = stiffness_group_test)
+tbl_q1 <- imap(q1_rows, function(t, name) {
+  tibble(
+    Comparison = name,
+    n = as.character(t$n),
+    `Mean % change (95% CI)` = fmt_mean_ci(t$obs_diff, t$ci_low, t$ci_high, 1),
+    `Increased` = if (is.null(t$n_positive)) "n/a" else paste0(t$n_positive, " of ", t$n),
+    `Cohen's d` = if (is.null(t$cohens_d)) "n/a" else fmt(t$cohens_d, 2),
+    P = fmt_pval(t$p_val),
+    `Min. attainable P` = fmt_pval(t$min_p),
+    Role = if (name == "Users - Nonusers") "Primary test" else "Descriptive"
+  )
+}) |>
+  bind_rows()
+
+tbl_q2 <- q2_summary |>
+  transmute(
+    Measure = label,
+    Units = units,
+    n = as.character(n),
+    `Flats, mean (SD)` = paste0(fmt(flats_mean, digits), " (", fmt(flats_sd, digits), ")"),
+    `Heels, mean (SD)` = paste0(fmt(heels_mean, digits), " (", fmt(heels_sd, digits), ")"),
+    `Heels - flats (95% CI)` = fmt_mean_ci(obs_diff, ci_low, ci_high, digits),
+    `Heels > flats` = paste0(n_positive, " of ", n),
+    P = fmt_pval(p_val),
+    `Min. attainable P` = fmt_pval(min_p)
+  )
+
+tbl_q2_visits <- footwear_by_time |>
+  left_join(footwear_measures, by = "measure") |>
+  mutate(measure = factor(measure, levels = footwear_measures$measure),
+         Time = factor(Time, levels = c("Pre", "Post"))) |>
+  arrange(measure, Time) |>
+  transmute(
+    Measure = label,
+    Visit = as.character(Time),
+    n = as.character(n),
+    `Heels - flats (95% CI)` = fmt_mean_ci(obs_diff, ci_low, ci_high, digits),
+    `Heels > flats` = paste0(n_positive, " of ", n),
+    P = fmt_pval(p_val),
+    `Min. attainable P` = fmt_pval(min_p)
+  )
+
+# The GRF slope is shown per 0.1 BW: heels - flats differences are about
+# 0.05 BW, so a slope per 1 BW would describe an unrealistically large change
+grf_unit <- 0.1
+tbl_q3 <- reg_results |>
+  mutate(across(c(slope, slope_ci_low, slope_ci_high),
+                ~ if_else(predictor == "peak_Fr_diff", .x * grf_unit, .x))) |>
+  transmute(
+    Predictor = if_else(predictor == "htd_steps", "Steps in heels (per 1,000 steps/day)",
+                        paste0("Heels - flats peak GRF (per ", grf_unit, " BW)")),
+    Role = if_else(role == "primary", "Primary", "Supplementary (descriptive)"),
+    n = as.character(n),
+    `Slope, % stiffness change (95% CI)` = fmt_mean_ci(slope, slope_ci_low, slope_ci_high, 1),
+    `r (95% CI)` = fmt_mean_ci(r, r_ci_low, r_ci_high, 2),
+    `R²` = fmt(r_squared, 2),
+    `P (permutation)` = if_else(role == "primary", fmt_pval(perm_p_val), "not tested"),
+    `P (regression)` = if_else(role == "primary", fmt_pval(p_val), "not tested")
+  )
+
+# --- Write the sheet ---
+
+summary_lines <- c(
+  "# Statistical summary: high-heel intervention and Achilles tendon stiffness",
+  "",
+  paste0("Generated by `R/WCB2026_Stats.R` on ", format(Sys.Date(), "%Y-%m-%d"),
+         ". Do not edit by hand: rerun the script to update it."),
+  "",
+  "## Statistical methods",
+  "",
+  "- All tests are two-sided permutation tests with the null distribution enumerated exactly (every possible sign combination, group assignment or pairing), at alpha = 0.05.",
+  "- **Q1 (stiffness change):** the primary test compares the mean Pre to Post % change in linear AT stiffness between Users and Nonusers (group labels reassigned; 70 possible assignments). The 95% CI is Welch's; Cohen's d uses the pooled SD. Within-group changes are descriptive: with 4 participants the sign-flip test cannot give P below 0.125.",
+  "- **Q2 (heels vs flats):** sign-flip test on each participant's heels - flats difference, averaged across the Pre and Post visits that had both conditions. 95% CIs are t-based. Robustness: the same test within each visit separately.",
+  "- **Q3 (dose-response):** simple linear regression of % change in stiffness on daily steps in heels. The slope is tested by permuting the outcomes across participants (8! = 40,320 pairings); its 95% CI is t-based and r's 95% CI uses Fisher's z. The peak GRF predictor is supplementary and descriptive (no test).",
+  "- **Min. attainable P** is the smallest P value the design can produce for that test.",
+  "- GRF and AT force are in body weights (BW). Summary values are calculated within each stance (heel strike to toe-off) and averaged over the 12-15 stances of each 15 s walking trial at 1.3 m/s.",
+  "",
+  "## 1. Participants and intervention exposure",
+  "",
+  "**Table 1.** Baseline characteristics at the Pre visit, mean (SD). Individual values are in `output/tables/baseline_characteristics.csv`.",
+  "",
+  md_table(tbl_baseline),
+  "**Table 2.** Daily step counts during the intervention, one average per participant.",
+  "",
+  md_table(tbl_steps),
+  "## 2. Q1: Change in AT stiffness, Pre to Post",
+  "",
+  "**Table 3.** % change in linear AT stiffness. Users vs Nonusers is the primary test; within-group P values are descriptive.",
+  "",
+  md_table(tbl_q1),
+  "Note: Users started with lower stiffness than Nonusers (Table 1). A lower baseline gives a larger % change for the same absolute change and may also reflect regression to the mean; with 4 per group this cannot be adjusted for.",
+  "",
+  "## 3. Q2: Walking in heels vs flats",
+  "",
+  "**Table 4.** Per-participant values averaged across the visits with both conditions. GJ03 Pre is excluded (stance detection failed); BO11 Pre and DF07 Post have no walking data, and DF07 Pre has heels only.",
+  "",
+  md_table(tbl_q2),
+  "**Table 5.** Robustness: the same comparison within each visit.",
+  "",
+  md_table(tbl_q2_visits),
+  "## 4. Q3: Dose-response",
+  "",
+  "**Table 6.** Regression of % change in AT stiffness on each predictor. The slope for steps in heels is the % change per additional 1,000 steps/day sustained over the intervention (89-111 days).",
+  "",
+  md_table(tbl_q3),
+  "Limitations of the supplementary peak GRF predictor: Nonusers' heels - flats GRF difference was measured in the lab but was not a load they received during the intervention; only 3 Users have GRF data; and AT strain was lower in heels even though peak GRF was higher, so GRF is not a measure of tendon load. See the comments in section 10 of the script.",
+  ""
+)
+summary_file <- file.path(repo_dir, "output", "statistics_summary.md")
+writeLines(summary_lines, summary_file)
+
+# Machine-readable copies of the tables in the sheet
+write_csv(perm_results, file.path(table_dir, "permutation_tests.csv"))
+write_csv(footwear_by_time, file.path(table_dir, "footwear_tests_by_visit.csv"))
+write_csv(select(q2_summary, -n_levels), file.path(table_dir, "footwear_tests.csv"))
+write_csv(reg_results, file.path(table_dir, "regressions.csv"))
+
+
 # Report where the output was written, so it is clear which copy of the
 # repository was run
 message("Figures saved to: ", normalizePath(fig_dir),
-        "\nTables saved to:  ", normalizePath(table_dir))
+        "\nTables saved to:  ", normalizePath(table_dir),
+        "\nSummary sheet:    ", normalizePath(summary_file))
