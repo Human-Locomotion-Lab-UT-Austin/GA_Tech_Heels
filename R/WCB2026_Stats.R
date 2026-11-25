@@ -661,43 +661,77 @@ pre_post_positions <- function(data) {
          box_x = if_else(Time == "Pre", 1.5, 2.5))
 }
 
-# Journal of Applied Physiology format (see theme_jap): one column wide, no
-# titles or statistics on the panels. Panels: A, Users Pre vs Post; B,
-# Nonusers Pre vs Post; C, % change by group; D, % change vs steps in heels.
-# The group of panels A and B and the statistics (within-group mean change and
-# 95% CI, between-group P, slope, r and P) must be given in the legend; they
-# are in output/statistics_summary.md (Tables 3 and 6).
+# Journal of Applied Physiology format (see theme_jap): one column wide, with
+# short panel titles but no statistics on the panels. Panels: A, Users Pre vs
+# Post; B, Nonusers Pre vs Post; C, % change by group; D, % change vs steps in
+# heels. Bars are group means and error bars are SE (mean_se); points are
+# individual participants. The statistics (within-group mean change and 95% CI,
+# between-group P, slope, r and P) go in the legend; they are in
+# output/statistics_summary.md (Tables 3 and 6).
 
-# Pre vs Post stiffness for one group, each participant's values joined by a line
-stiffness_box_panel <- function(group) {
+# Panel titles at 9 pt, with a smaller top margin than theme_jap because the
+# panel letters sit beside the title
+theme_jap_titled <- theme(
+  plot.title  = element_text(size = 9, hjust = 0.5, margin = margin(b = 4)),
+  plot.margin = margin(4, 6, 4, 4)
+)
+
+# Bar = mean, error bar = SE, at bar_x; points (and lines, if line_group is
+# given) at point_x. bar_width is in x-axis units, so panels whose x-axis
+# spans a different range pass a matching width.
+mean_se_layers <- function(bar_x, point_x, line_group = NULL, bar_width = 0.18) {
+  list(
+    stat_summary(aes(x = {{ bar_x }}, group = {{ bar_x }}, fill = factor({{ bar_x }})),
+                 fun = mean, geom = "bar", width = bar_width, color = "black",
+                 linewidth = jap_line_width),
+    stat_summary(aes(x = {{ bar_x }}, group = {{ bar_x }}), fun.data = mean_se,
+                 geom = "errorbar", width = bar_width / 2, color = "black", linewidth = jap_line_width),
+    if (!is.null(line_group)) {
+      geom_line(aes(x = {{ point_x }}, group = .data[[line_group]], color = ParticipantID),
+                linewidth = jap_line_width)
+    },
+    geom_point(aes(x = {{ point_x }}, color = ParticipantID), size = jap_point_size)
+  )
+}
+
+# Pre vs Post stiffness for one group: mean +/- SE bars, with each
+# participant's Pre and Post values joined by a line
+stiffness_bar_panel <- function(group, title) {
   d |>
     filter(Compliance == group) |>
     pre_post_positions() |>
-    paired_box_fig(k_lin, ParticipantID, c("Pre", "Post"), group, NULL,
-                   "Tendon Stiffness (N/mm)", c(100, 400),
-                   point_size = jap_point_size, line_width = jap_line_width) +
-    labs(title = NULL, x = "Timepoint") +
-    theme_jap
+    ggplot(aes(y = k_lin)) +
+    mean_se_layers(box_x, x_num, line_group = "ParticipantID") +
+    scale_x_continuous(breaks = c(1.5, 2.5), labels = c("Pre", "Post"), limits = c(1.3, 2.7)) +
+    scale_y_continuous(limits = c(0, 420), breaks = seq(0, 400, by = 100),
+                       expand = expansion(mult = c(0, 0.02))) +
+    scale_fill_manual(values = c("1.5" = col_light, "2.5" = col_dark)) +
+    participant_color_scale +
+    labs(title = title, x = "Timepoint", y = "Tendon Stiffness (N/mm)") +
+    theme_wcb() +
+    theme_jap +
+    theme_jap_titled
 }
-stiffness_users_fig    <- stiffness_box_panel("User")
-stiffness_nonusers_fig <- stiffness_box_panel("Nonuser")
+stiffness_users_fig    <- stiffness_bar_panel("User", "Users")
+stiffness_nonusers_fig <- stiffness_bar_panel("Nonuser", "Nonusers")
 
-# % change in stiffness by group, dashed line = no change
+# % change in stiffness by group: mean +/- SE bars and individual participants;
+# dashed line = no change
 stiffness_diff_fig <- diff_data |>
   mutate(x_num = if_else(compliance == "Nonuser", 1.15, 1.35),
          box_x = if_else(compliance == "Nonuser", 1, 1.5)) |>
-  ggplot(aes(x = box_x, y = k_lin)) +
+  ggplot(aes(y = k_lin)) +
   geom_hline(yintercept = 0, color = "black", linewidth = jap_line_width, linetype = "dashed") +
-  geom_boxplot(aes(group = box_x, fill = factor(box_x)), width = 0.12, color = "black",
-               linewidth = jap_line_width, whisker.linewidth = jap_line_width, staplewidth = 0.5) +
-  geom_point(aes(x = x_num, color = ParticipantID), size = jap_point_size) +
+  mean_se_layers(box_x, x_num, bar_width = 0.09) + # x-axis spans half the range of panels A-B
   scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.9, 1.6)) +
   scale_fill_manual(values = c("1" = col_light, "1.5" = col_dark)) +
   participant_color_scale +
-  ylim(-20, 32) +
-  labs(x = "Group", y = expression(paste(Delta, "Tendon Stiffness (%)"))) +
+  scale_y_continuous(limits = c(-20, 35), breaks = seq(-20, 30, by = 10)) +
+  labs(title = "Between Groups", x = "Group",
+       y = expression(paste(Delta, "Tendon Stiffness (%)"))) +
   theme_wcb() +
-  theme_jap
+  theme_jap +
+  theme_jap_titled
 
 # % change vs steps in heels; the standalone htd_steps_reg_fig (section 10)
 # keeps its poster sizes and statistics
@@ -707,8 +741,9 @@ stiffness_steps_fig <- reg_fig(
   scale_x_continuous(breaks = c(0, 2, 4), limits = c(0, 4), labels = scales::label_comma(scale = 1000)),
   point_size = 1.5, line_width = 0.5
 ) +
-  labs(title = NULL, subtitle = NULL) +
-  theme_jap
+  labs(title = "Steps in Heels", subtitle = NULL) +
+  theme_jap +
+  theme_jap_titled
 
 combined_stiffness_fig <- jap_combine(
   list(stiffness_users_fig, stiffness_nonusers_fig, stiffness_diff_fig, stiffness_steps_fig),
