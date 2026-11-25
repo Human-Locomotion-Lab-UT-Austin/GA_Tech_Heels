@@ -782,13 +782,11 @@ write_csv(step_group_tests, file.path(table_dir, "step_counts_group_tests.csv"))
 # columns, 6-7.15 in full width, and 9 in maximum depth), in Helvetica (an
 # APS-recommended font and R's default PDF font). APS gives no minimum
 # lettering size, so text follows the common 8 pt minimum at final size:
-# 8 pt axis titles and tick labels, 9 pt panel titles and 10 pt bold panel
-# letters. Line widths and point sizes are scaled down to match.
+# 8 pt axis titles and tick labels and 10 pt bold panel letters. Line widths and point sizes are scaled down to match.
 jap_width  <- 3.5  # in, single column
 jap_height <- 2.75 # in
 theme_jap <- theme(
   text         = element_text(family = "Helvetica", color = "black"),
-  plot.title   = element_text(size = 9, margin = margin(b = 4)),
   axis.title.x = element_text(size = 8, margin = margin(t = 3)),
   axis.title.y = element_text(size = 8, margin = margin(r = 3)),
   axis.text    = element_text(size = 8, color = "black"),
@@ -799,12 +797,12 @@ theme_jap <- theme(
   # background: separate white panel backgrounds can leave a thin gray seam
   # between the panels in some PDF viewers
   plot.background = element_blank(),
-  plot.margin  = margin(4, 6, 4, 4)
+  plot.margin  = margin(14, 6, 4, 4) # top margin leaves room for the A / B labels
 )
 
 # Bar = group mean, error bar = SE, points = individual participants.
 # Participants with no step data (NA) are left out of that panel.
-steps_fig <- function(y, title, y_label, y_max, y_step) {
+steps_fig <- function(y, y_label, y_max, y_step) {
   step_counts |>
     mutate(x_num = if_else(Compliance == "Nonuser", 1.15, 1.35),
            box_x = if_else(Compliance == "Nonuser", 1, 1.5)) |>
@@ -820,17 +818,15 @@ steps_fig <- function(y, title, y_label, y_max, y_step) {
     coord_cartesian(clip = "off") +
     scale_fill_manual(values = c("1" = col_light, "1.5" = col_dark)) +
     participant_color_scale +
-    labs(title = title, x = "Group", y = y_label) +
+    labs(x = "Group", y = y_label) + # no panel titles: the y-axis titles name each measure
     theme_wcb() +
     theme_jap
 }
 
 # Dashed line: 1000 steps per day in heels
-# Short panel titles so they fit the one-column width; the y-axis titles give
-# the full measure
-htd_steps_fig <- steps_fig(HTDSteps, "Steps in Heels", "Steps in High Heels per Day", 3800, 500) +
+htd_steps_fig <- steps_fig(HTDSteps, "Steps in High Heels per Day", 3800, 500) +
   geom_hline(yintercept = 1000, color = "black", linewidth = 0.3, linetype = "dashed")
-total_steps_fig <- steps_fig(TotalSteps, "Total Steps", "Total Steps per Day", 16000, 2500)
+total_steps_fig <- steps_fig(TotalSteps, "Total Steps per Day", 16000, 2500)
 
 combined_steps_fig <- ggdraw() +
   draw_plot(plot_grid(htd_steps_fig, total_steps_fig,
