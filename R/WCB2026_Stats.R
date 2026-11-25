@@ -493,7 +493,10 @@ theme_wcb <- function() {
 
 # Box plot of two paired conditions with each participant's values joined by a
 # line. data needs box_x (1.5 / 2.5, box centers) and x_num (1.7 / 2.3, points)
-paired_box_fig <- function(data, y, line_group, x_labels, title, subtitle, y_label, y_limits) {
+# point_size and line_width default to the poster sizes; journal figures pass
+# jap_point_size and jap_line_width.
+paired_box_fig <- function(data, y, line_group, x_labels, title, subtitle, y_label, y_limits,
+                           point_size = 3, line_width = 0.5) {
   # ylim() silently drops values outside the limits (and changes the box
   # statistics), so stop if any data point would be hidden
   y_values <- pull(data, {{ y }})
@@ -504,9 +507,10 @@ paired_box_fig <- function(data, y, line_group, x_labels, title, subtitle, y_lab
   }
   ggplot(data, aes(x = box_x, y = {{ y }})) +
     geom_boxplot(aes(group = box_x, fill = factor(box_x)), width = 0.18, color = "black",
-                 linewidth = 0.5, whisker.linewidth = 0.5, staplewidth = 0.5) +
-    geom_point(aes(x = x_num, color = ParticipantID), size = 3) +
-    geom_line(aes(x = x_num, group = {{ line_group }}, color = ParticipantID)) +
+                 linewidth = line_width, whisker.linewidth = line_width, staplewidth = 0.5) +
+    geom_point(aes(x = x_num, color = ParticipantID), size = point_size) +
+    geom_line(aes(x = x_num, group = {{ line_group }}, color = ParticipantID),
+              linewidth = line_width) +
     scale_x_continuous(breaks = c(1.5, 2.5), labels = x_labels, limits = c(1.3, 2.7)) +
     scale_fill_manual(values = c("1.5" = col_light, "2.5" = col_dark)) +
     participant_color_scale +
@@ -519,7 +523,8 @@ paired_box_fig <- function(data, y, line_group, x_labels, title, subtitle, y_lab
 # squares line. The subtitle gives the slope per 1,000 steps/day with its 95% CI,
 # r and the permutation P for the primary predictor, and r with its 95% CI for
 # supplementary predictors (see section 8)
-reg_fig <- function(predictor, x_label, x_scale, title = NULL, axis_title_size = 26) {
+reg_fig <- function(predictor, x_label, x_scale, title = NULL, axis_title_size = 26,
+                    point_size = 6, line_width = 1) {
   res <- filter(reg_results, .data$predictor == !!predictor)
   f <- function(v) formatC(v, digits = 2, format = "f")
   f1 <- function(v) formatC(v, digits = 1, format = "f", flag = "+")
@@ -531,9 +536,9 @@ reg_fig <- function(predictor, x_label, x_scale, title = NULL, axis_title_size =
     paste0("r = ", f(res$r), " (95% CI ", f(res$r_ci_low), " to ", f(res$r_ci_high), ")")
   }
   ggplot(reg_data, aes(x = .data[[predictor]], y = k_lin, color = ParticipantID)) +
-    geom_point(size = 6, alpha = 0.7) +
+    geom_point(size = point_size, alpha = 0.7) +
     geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = col_dark,
-                linewidth = 1, fullrange = TRUE) +
+                linewidth = line_width, fullrange = TRUE) +
     x_scale +
     scale_y_continuous(breaks = seq(-40, 40, by = 10)) +
     coord_cartesian(ylim = c(-25, 35)) +
@@ -554,6 +559,43 @@ reg_fig <- function(predictor, x_label, x_scale, title = NULL, axis_title_size =
       axis.text.x   = element_text(color = "black", size = 18, margin = margin(t = 10)),
       axis.text.y   = element_text(color = "black", size = 18, margin = margin(r = 10))
     )
+}
+
+# Journal of Applied Physiology figures, at final print size. APS limits:
+# <= 3.5 in wide for one column, 4-5 in for 1.5 columns, 6-7.15 in full width,
+# and 9 in maximum depth; recommended fonts include Helvetica (R's default PDF
+# font). APS gives no minimum lettering size, so text follows the common 8 pt
+# minimum at final size: 8 pt axis titles and tick labels and 10 pt bold panel
+# letters, with no panel titles (each panel is named by its letter and axis
+# titles; statistics go in the legend). Line widths and point sizes are scaled
+# down to match.
+jap_width      <- 3.5 # in, single column
+jap_point_size <- 1.2
+jap_line_width <- 0.3
+theme_jap <- theme(
+  text         = element_text(family = "Helvetica", color = "black"),
+  axis.title.x = element_text(size = 8, margin = margin(t = 3)),
+  axis.title.y = element_text(size = 8, margin = margin(r = 3)),
+  axis.text    = element_text(size = 8, color = "black"),
+  axis.text.x  = element_text(size = 8, color = "black", margin = margin(t = 2)),
+  axis.text.y  = element_text(size = 8, color = "black", margin = margin(r = 2)),
+  axis.line    = element_line(color = "black", linewidth = jap_line_width),
+  axis.ticks   = element_line(color = "black", linewidth = jap_line_width),
+  axis.ticks.length = unit(-2, "pt"),
+  # transparent so the panels sit on the combined figure's single white
+  # background: separate white panel backgrounds can leave thin gray seams
+  # between panels in some PDF viewers
+  plot.background = element_blank(),
+  plot.margin  = margin(14, 6, 4, 4) # top margin leaves room for the panel letters
+)
+
+# Combine journal panels on one white background, labeled A, B, ...
+jap_combine <- function(plots, ncol) {
+  ggdraw() +
+    draw_plot(plot_grid(plotlist = plots, ncol = ncol,
+                        labels = LETTERS[seq_along(plots)], label_size = 10,
+                        label_fontfamily = "Helvetica", align = "hv", axis = "tblr")) +
+    theme(plot.background = element_rect(fill = "white", color = NA))
 }
 
 # Save a figure to fig_dir at a fixed size so output does not depend on the
@@ -619,64 +661,61 @@ pre_post_positions <- function(data) {
          box_x = if_else(Time == "Pre", 1.5, 2.5))
 }
 
-theme_stiffness <- theme(
-  plot.title    = element_text(size = 30),
-  plot.subtitle = element_text(size = 18),
-  axis.title.x  = element_text(size = 20, margin = margin(t = 14)),
-  axis.title.y  = element_text(size = 20, margin = margin(r = 14)),
-  axis.text     = element_text(size = 16, color = "black")
-)
+# Journal of Applied Physiology format (see theme_jap): one column wide, no
+# titles or statistics on the panels. Panels: A, Users Pre vs Post; B,
+# Nonusers Pre vs Post; C, % change by group; D, % change vs steps in heels.
+# The group of panels A and B and the statistics (within-group mean change and
+# 95% CI, between-group P, slope, r and P) must be given in the legend; they
+# are in output/statistics_summary.md (Tables 3 and 6).
 
-stiffness_users_fig <- d |>
-  filter(Compliance == "User") |>
-  pre_post_positions() |>
-  paired_box_fig(k_lin, ParticipantID, c("Pre", "Post"), "Users",
-                 format_change(stiffness_user_test), "Tendon Stiffness (N/mm)", c(100, 400)) +
-  xlab("Timepoint") +
-  theme_stiffness
-
-stiffness_nonusers_fig <- d |>
-  filter(Compliance == "Nonuser") |>
-  pre_post_positions() |>
-  paired_box_fig(k_lin, ParticipantID, c("Pre", "Post"), "Nonusers",
-                 format_change(stiffness_nonuser_test), "Tendon Stiffness (N/mm)", c(100, 400)) +
-  xlab("Timepoint") +
-  theme_stiffness
+# Pre vs Post stiffness for one group, each participant's values joined by a line
+stiffness_box_panel <- function(group) {
+  d |>
+    filter(Compliance == group) |>
+    pre_post_positions() |>
+    paired_box_fig(k_lin, ParticipantID, c("Pre", "Post"), group, NULL,
+                   "Tendon Stiffness (N/mm)", c(100, 400),
+                   point_size = jap_point_size, line_width = jap_line_width) +
+    labs(title = NULL, x = "Timepoint") +
+    theme_jap
+}
+stiffness_users_fig    <- stiffness_box_panel("User")
+stiffness_nonusers_fig <- stiffness_box_panel("Nonuser")
 
 # % change in stiffness by group, dashed line = no change
 stiffness_diff_fig <- diff_data |>
   mutate(x_num = if_else(compliance == "Nonuser", 1.15, 1.35),
          box_x = if_else(compliance == "Nonuser", 1, 1.5)) |>
   ggplot(aes(x = box_x, y = k_lin)) +
-  geom_hline(yintercept = 0, color = "black", linewidth = 0.5, linetype = "dashed") +
+  geom_hline(yintercept = 0, color = "black", linewidth = jap_line_width, linetype = "dashed") +
   geom_boxplot(aes(group = box_x, fill = factor(box_x)), width = 0.12, color = "black",
-               linewidth = 0.5, whisker.linewidth = 0.5, staplewidth = 0.5) +
-  geom_point(aes(x = x_num, color = ParticipantID), size = 3) +
+               linewidth = jap_line_width, whisker.linewidth = jap_line_width, staplewidth = 0.5) +
+  geom_point(aes(x = x_num, color = ParticipantID), size = jap_point_size) +
   scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.9, 1.6)) +
   scale_fill_manual(values = c("1" = col_light, "1.5" = col_dark)) +
   participant_color_scale +
   ylim(-20, 32) +
-  labs(title = "Between Groups", subtitle = format_p(stiffness_group_test$p_val), x = "Group",
-       y = expression(paste(Delta, "Tendon Stiffness (%)"))) +
+  labs(x = "Group", y = expression(paste(Delta, "Tendon Stiffness (%)"))) +
   theme_wcb() +
-  theme_stiffness
+  theme_jap
 
-combined_stiffness_fig <- plot_grid(
-  plot_grid(stiffness_users_fig, stiffness_nonusers_fig,
-            labels = c("A", "B"), ncol = 2, align = "hv"),
-  plot_grid(stiffness_diff_fig,
-            # same title, axis title and axis text sizes as panels A-C
-            # (theme_stiffness); the standalone htd_steps_reg_fig keeps its
-            # larger poster sizes. Smaller subtitle so the two-line slope label
-            # fits the half-width panel.
-            htd_steps_reg_fig + theme_stiffness +
-              theme(plot.subtitle = element_text(size = 15),
-                    plot.margin = margin(5.5, 18, 5.5, 5.5)),
-            labels = c("C", "D"), ncol = 2, align = "h", axis = "tb"),
-  nrow = 2
+# % change vs steps in heels; the standalone htd_steps_reg_fig (section 10)
+# keeps its poster sizes and statistics
+# (shorter x-axis title and fewer x breaks so they fit the half-column panel)
+stiffness_steps_fig <- reg_fig(
+  "htd_steps", "Steps in Heels per Day",
+  scale_x_continuous(breaks = c(0, 2, 4), limits = c(0, 4), labels = scales::label_comma(scale = 1000)),
+  point_size = 1.5, line_width = 0.5
+) +
+  labs(title = NULL, subtitle = NULL) +
+  theme_jap
+
+combined_stiffness_fig <- jap_combine(
+  list(stiffness_users_fig, stiffness_nonusers_fig, stiffness_diff_fig, stiffness_steps_fig),
+  ncol = 2
 )
 combined_stiffness_fig
-save_fig(combined_stiffness_fig, "users_vs_nonusers_stiffness_fig.pdf", width = 12.65, height = 9.88)
+save_fig(combined_stiffness_fig, "users_vs_nonusers_stiffness_fig.pdf", width = jap_width, height = 5.5)
 
 
 # 12. Figure: Q2 heels vs flats loading and strain -----------------------------
@@ -777,29 +816,6 @@ step_group_tests <- list(
 print(step_group_tests, width = Inf)
 write_csv(step_group_tests, file.path(table_dir, "step_counts_group_tests.csv"))
 
-# Sized for the Journal of Applied Physiology at final print size: one column
-# (3.5 in wide; APS limits are <= 3.5 in for one column, 4-5 in for 1.5
-# columns, 6-7.15 in full width, and 9 in maximum depth), in Helvetica (an
-# APS-recommended font and R's default PDF font). APS gives no minimum
-# lettering size, so text follows the common 8 pt minimum at final size:
-# 8 pt axis titles and tick labels and 10 pt bold panel letters. Line widths and point sizes are scaled down to match.
-jap_width  <- 3.5  # in, single column
-jap_height <- 2.75 # in
-theme_jap <- theme(
-  text         = element_text(family = "Helvetica", color = "black"),
-  axis.title.x = element_text(size = 8, margin = margin(t = 3)),
-  axis.title.y = element_text(size = 8, margin = margin(r = 3)),
-  axis.text    = element_text(size = 8, color = "black"),
-  axis.line    = element_line(color = "black", linewidth = 0.3),
-  axis.ticks   = element_line(color = "black", linewidth = 0.3),
-  axis.ticks.length = unit(-2, "pt"),
-  # transparent so the two panels sit on the combined figure's single white
-  # background: separate white panel backgrounds can leave a thin gray seam
-  # between the panels in some PDF viewers
-  plot.background = element_blank(),
-  plot.margin  = margin(14, 6, 4, 4) # top margin leaves room for the A / B labels
-)
-
 # Bar = group mean, error bar = SE, points = individual participants.
 # Participants with no step data (NA) are left out of that panel.
 steps_fig <- function(y, y_label, y_max, y_step) {
@@ -808,9 +824,9 @@ steps_fig <- function(y, y_label, y_max, y_step) {
            box_x = if_else(Compliance == "Nonuser", 1, 1.5)) |>
     ggplot(aes(x = box_x, y = {{ y }})) +
     stat_summary(aes(group = box_x, fill = factor(box_x)), fun = mean, geom = "bar",
-                 width = 0.12, color = "black", linewidth = 0.3) +
+                 width = 0.12, color = "black", linewidth = jap_line_width) +
     stat_summary(aes(group = box_x), fun.data = mean_se, geom = "errorbar",
-                 width = 0.06, color = "black", linewidth = 0.3) +
+                 width = 0.06, color = "black", linewidth = jap_line_width) +
     geom_point(aes(x = x_num, color = ParticipantID), size = 1.5) +
     scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.9, 1.6)) +
     scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0, 0.05)),
@@ -825,16 +841,13 @@ steps_fig <- function(y, y_label, y_max, y_step) {
 
 # Dashed line: 1000 steps per day in heels
 htd_steps_fig <- steps_fig(HTDSteps, "Steps in High Heels per Day", 3800, 500) +
-  geom_hline(yintercept = 1000, color = "black", linewidth = 0.3, linetype = "dashed")
+  geom_hline(yintercept = 1000, color = "black", linewidth = jap_line_width, linetype = "dashed")
 total_steps_fig <- steps_fig(TotalSteps, "Total Steps per Day", 16000, 2500)
 
-combined_steps_fig <- ggdraw() +
-  draw_plot(plot_grid(htd_steps_fig, total_steps_fig,
-                      labels = c("A", "B"), label_size = 10, label_fontfamily = "Helvetica",
-                      ncol = 2, align = "h", axis = "tb")) +
-  theme(plot.background = element_rect(fill = "white", color = NA))
+# Journal of Applied Physiology format (see theme_jap)
+combined_steps_fig <- jap_combine(list(htd_steps_fig, total_steps_fig), ncol = 2)
 combined_steps_fig
-save_fig(combined_steps_fig, "users_vs_nonusers_steps_fig.pdf", width = jap_width, height = jap_height)
+save_fig(combined_steps_fig, "users_vs_nonusers_steps_fig.pdf", width = jap_width, height = 2.75)
 
 
 # 14. Stance-phase time series: participant averages ------------------------
