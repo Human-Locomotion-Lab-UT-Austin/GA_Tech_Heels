@@ -777,45 +777,68 @@ step_group_tests <- list(
 print(step_group_tests, width = Inf)
 write_csv(step_group_tests, file.path(table_dir, "step_counts_group_tests.csv"))
 
+# Sized for the Journal of Applied Physiology at final print size: one column
+# (3.5 in wide; APS limits are <= 3.5 in for one column, 4-5 in for 1.5
+# columns, 6-7.15 in full width, and 9 in maximum depth), in Helvetica (an
+# APS-recommended font and R's default PDF font). APS gives no minimum
+# lettering size, so text follows the common 8 pt minimum at final size:
+# 8 pt axis titles and tick labels, 9 pt panel titles and 10 pt bold panel
+# letters. Line widths and point sizes are scaled down to match.
+jap_width  <- 3.5  # in, single column
+jap_height <- 2.75 # in
+theme_jap <- theme(
+  text         = element_text(family = "Helvetica", color = "black"),
+  plot.title   = element_text(size = 9, margin = margin(b = 4)),
+  axis.title.x = element_text(size = 8, margin = margin(t = 3)),
+  axis.title.y = element_text(size = 8, margin = margin(r = 3)),
+  axis.text    = element_text(size = 8, color = "black"),
+  axis.line    = element_line(color = "black", linewidth = 0.3),
+  axis.ticks   = element_line(color = "black", linewidth = 0.3),
+  axis.ticks.length = unit(-2, "pt"),
+  # transparent so the two panels sit on the combined figure's single white
+  # background: separate white panel backgrounds can leave a thin gray seam
+  # between the panels in some PDF viewers
+  plot.background = element_blank(),
+  plot.margin  = margin(4, 6, 4, 4)
+)
+
 # Bar = group mean, error bar = SE, points = individual participants.
 # Participants with no step data (NA) are left out of that panel.
-steps_fig <- function(y, title, y_max, y_step) {
+steps_fig <- function(y, title, y_label, y_max, y_step) {
   step_counts |>
     mutate(x_num = if_else(Compliance == "Nonuser", 1.15, 1.35),
            box_x = if_else(Compliance == "Nonuser", 1, 1.5)) |>
     ggplot(aes(x = box_x, y = {{ y }})) +
     stat_summary(aes(group = box_x, fill = factor(box_x)), fun = mean, geom = "bar",
-                 width = 0.12, color = "black", linewidth = 0.5) +
+                 width = 0.12, color = "black", linewidth = 0.3) +
     stat_summary(aes(group = box_x), fun.data = mean_se, geom = "errorbar",
-                 width = 0.06, color = "black", linewidth = 0.5) +
-    geom_point(aes(x = x_num, color = ParticipantID), size = 5) +
+                 width = 0.06, color = "black", linewidth = 0.3) +
+    geom_point(aes(x = x_num, color = ParticipantID), size = 1.5) +
     scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.9, 1.6)) +
     scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0, 0.05)),
-                       breaks = scales::breaks_width(y_step)) +
+                       breaks = scales::breaks_width(y_step), labels = scales::label_comma()) +
     coord_cartesian(clip = "off") +
     scale_fill_manual(values = c("1" = col_light, "1.5" = col_dark)) +
     participant_color_scale +
-    labs(title = title, x = "Group", y = title) +
+    labs(title = title, x = "Group", y = y_label) +
     theme_wcb() +
-    theme(
-      plot.title   = element_text(size = 30),
-      axis.text    = element_text(size = 18, color = "black"),
-      axis.title.y = element_text(color = "black", size = 26, margin = margin(r = 14)),
-      axis.title.x = element_text(size = 26, margin = margin(t = 14))
-    )
+    theme_jap
 }
 
 # Dashed line: 1000 steps per day in heels
-htd_steps_fig <- steps_fig(HTDSteps, "Steps in High Heels per Day", 3800, 500) +
-  geom_hline(yintercept = 1000, color = "black", linewidth = 0.5, linetype = "dashed")
-total_steps_fig <- steps_fig(TotalSteps, "Total Steps per Day", 16000, 2500)
+# Short panel titles so they fit the one-column width; the y-axis titles give
+# the full measure
+htd_steps_fig <- steps_fig(HTDSteps, "Steps in Heels", "Steps in High Heels per Day", 3800, 500) +
+  geom_hline(yintercept = 1000, color = "black", linewidth = 0.3, linetype = "dashed")
+total_steps_fig <- steps_fig(TotalSteps, "Total Steps", "Total Steps per Day", 16000, 2500)
 
-combined_steps_fig <- plot_grid(
-  htd_steps_fig, total_steps_fig,
-  labels = c("A", "B"), ncol = 2, align = "h", axis = "tb"
-)
+combined_steps_fig <- ggdraw() +
+  draw_plot(plot_grid(htd_steps_fig, total_steps_fig,
+                      labels = c("A", "B"), label_size = 10, label_fontfamily = "Helvetica",
+                      ncol = 2, align = "h", axis = "tb")) +
+  theme(plot.background = element_rect(fill = "white", color = NA))
 combined_steps_fig
-save_fig(combined_steps_fig, "users_vs_nonusers_steps_fig.pdf", width = 14.28, height = 9.88)
+save_fig(combined_steps_fig, "users_vs_nonusers_steps_fig.pdf", width = jap_width, height = jap_height)
 
 
 # 14. Stance-phase time series: participant averages ------------------------
