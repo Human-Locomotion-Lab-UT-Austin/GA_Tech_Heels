@@ -1130,7 +1130,8 @@ stance_x_scale_jap <- scale_x_continuous(
 
 # Mean time series over stance, heels vs flats. Flats are drawn last so the
 # dashed line stays visible where it overlaps the solid heels line. The legend
-# is drawn in one panel only (top right of the EMA panel, where it is empty),
+# is drawn in one panel only (bottom center of the rGRF panel, in the empty
+# space below the curves between the two peaks),
 # and the x-axis title on the bottom row only.
 stance_panel <- function(y, y_label, show_legend = FALSE, show_x_title = FALSE,
                          y_scale = scale_y_continuous()) {
@@ -1152,8 +1153,8 @@ stance_panel <- function(y, y_label, show_legend = FALSE, show_x_title = FALSE,
     theme(
       axis.title.x           = if (show_x_title) element_text(size = 8, margin = margin(t = 3)) else element_blank(),
       legend.position        = if (show_legend) "inside" else "none",
-      legend.position.inside = c(0.98, 0.98),
-      legend.justification   = c("right", "top"),
+      legend.position.inside = c(0.53, 0.03),
+      legend.justification   = c("center", "bottom"),
       legend.direction       = "vertical",
       legend.text            = element_text(size = 7),
       legend.background      = element_blank(),
@@ -1187,9 +1188,9 @@ summary_box_panel <- function(y, name, y_label) {
 
 stance_summary_fig <- jap_combine(
   list(
-    stance_panel(grf, "rGRF (BW)"),
+    stance_panel(grf, "rGRF (BW)", show_legend = TRUE),
     summary_box_panel(pushoff_Fr, "Push-off Peak rGRF", "Push-off Peak\nrGRF (BW)"),
-    stance_panel(ema, "EMA (r/R)", show_legend = TRUE,
+    stance_panel(ema, "EMA (r/R)",
                  y_scale = scale_y_continuous(limits = c(0, ema_ymax),
                                               breaks = seq(0, ema_ymax, by = 0.25))),
     summary_box_panel(EMA_pushoff, "EMA at Push-off GRF Peak", "EMA (r/R)"),
