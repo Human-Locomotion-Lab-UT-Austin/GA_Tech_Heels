@@ -680,7 +680,7 @@ theme_jap_titled <- theme(
 # Bar = mean, error bar = SE, at bar_x; points (and lines, if line_group is
 # given) at point_x. bar_width is in x-axis units, so panels whose x-axis
 # spans a different range pass a matching width.
-mean_se_layers <- function(bar_x, point_x, line_group = NULL, bar_width = 0.18) {
+mean_se_layers <- function(bar_x, point_x, line_group = NULL, bar_width = 0.28) {
   list(
     stat_summary(aes(x = {{ bar_x }}, group = {{ bar_x }}, fill = factor({{ bar_x }})),
                  fun = mean, geom = "bar", width = bar_width, color = "black",
@@ -723,7 +723,7 @@ stiffness_diff_fig <- diff_data |>
          box_x = if_else(compliance == "Nonuser", 1, 1.5)) |>
   ggplot(aes(y = k_lin)) +
   geom_hline(yintercept = 0, color = "black", linewidth = jap_line_width, linetype = "dashed") +
-  mean_se_layers(box_x, x_num, bar_width = 0.09) + # x-axis spans half the range of panels A-B
+  mean_se_layers(box_x, x_num, bar_width = 0.14) + # x-axis spans half the range of panels A-B
   scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.9, 1.6)) +
   scale_fill_manual(values = c("1" = col_light, "1.5" = col_dark)) +
   participant_color_scale +
@@ -861,9 +861,9 @@ steps_fig <- function(y, y_label, y_max, y_step) {
            box_x = if_else(Compliance == "Nonuser", 1, 1.5)) |>
     ggplot(aes(x = box_x, y = {{ y }})) +
     stat_summary(aes(group = box_x, fill = factor(box_x)), fun = mean, geom = "bar",
-                 width = 0.12, color = "black", linewidth = jap_line_width) +
+                 width = 0.14, color = "black", linewidth = jap_line_width) +
     stat_summary(aes(group = box_x), fun.data = mean_se, geom = "errorbar",
-                 width = 0.06, color = "black", linewidth = jap_line_width) +
+                 width = 0.07, color = "black", linewidth = jap_line_width) +
     geom_point(aes(x = x_num, color = ParticipantID), size = 1.5) +
     scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.9, 1.6)) +
     scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0, 0.05)),
@@ -873,19 +873,20 @@ steps_fig <- function(y, y_label, y_max, y_step) {
     participant_color_scale +
     labs(x = "Group", y = y_label) + # no panel titles: the y-axis titles name each measure
     theme_wcb() +
-    theme_jap
+    theme_jap +
+    # the whole figure is square (see save_fig below), not each panel
+    theme(aspect.ratio = NULL)
 }
 
 # Dashed line: 1000 steps per day in heels
-# (two-line y-axis titles and 1,000-step breaks so they fit the square panels)
-htd_steps_fig <- steps_fig(HTDSteps, "Steps in High Heels\nper Day", 3800, 1000) +
+htd_steps_fig <- steps_fig(HTDSteps, "Steps in High Heels per Day", 3800, 500) +
   geom_hline(yintercept = 1000, color = "black", linewidth = jap_line_width, linetype = "dashed")
-total_steps_fig <- steps_fig(TotalSteps, "Total Steps\nper Day", 16000, 5000)
+total_steps_fig <- steps_fig(TotalSteps, "Total Steps per Day", 16000, 2500)
 
 # Journal of Applied Physiology format (see theme_jap)
 combined_steps_fig <- jap_combine(list(htd_steps_fig, total_steps_fig), ncol = 2)
 combined_steps_fig
-save_fig(combined_steps_fig, "users_vs_nonusers_steps_fig.pdf", width = jap_width, height = 1.65)
+save_fig(combined_steps_fig, "users_vs_nonusers_steps_fig.pdf", width = jap_width, height = jap_width) # square
 
 
 # 14. Stance-phase time series: participant averages ------------------------
