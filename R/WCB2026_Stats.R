@@ -577,7 +577,7 @@ theme_jap <- theme(
   axis.title.x = element_text(size = 8, margin = margin(t = 3)),
   axis.title.y = element_text(size = 8, margin = margin(r = 3)),
   axis.text    = element_text(size = 8, color = "black"),
-  axis.text.x  = element_text(size = 8, color = "black", margin = margin(t = 2)),
+  axis.text.x  = element_text(size = 8, color = "black", margin = margin(t = 4)),
   axis.text.y  = element_text(size = 8, color = "black", margin = margin(r = 2)),
   axis.line    = element_line(color = "black", linewidth = jap_line_width),
   axis.ticks   = element_line(color = "black", linewidth = jap_line_width),
@@ -655,10 +655,11 @@ save_fig(pushoff_grf_reg_fig, "supp_pushoff_grf_reg_fig.pdf", width = 11.24, hei
 
 # 11. Figure: Q1 AT stiffness, Users vs Nonusers -------------------------------
 
-# Point (x_num) and box (box_x) x positions for the Pre / Post figures
+# Point (x_num) and bar (box_x) x positions for the Pre / Post figures; points
+# sit just inside the bars so they do not overlap them
 pre_post_positions <- function(data) {
   mutate(data,
-         x_num = if_else(Time == "Pre", 1.7, 2.3),
+         x_num = if_else(Time == "Pre", 1.75, 2.25),
          box_x = if_else(Time == "Pre", 1.5, 2.5))
 }
 
@@ -680,7 +681,7 @@ theme_jap_titled <- theme(
 # Bar = mean, error bar = SE, at bar_x; points (and lines, if line_group is
 # given) at point_x. bar_width is in x-axis units, so panels whose x-axis
 # spans a different range pass a matching width.
-mean_se_layers <- function(bar_x, point_x, line_group = NULL, bar_width = 0.28) {
+mean_se_layers <- function(bar_x, point_x, line_group = NULL, bar_width = 0.32) {
   list(
     stat_summary(aes(x = {{ bar_x }}, group = {{ bar_x }}, fill = factor({{ bar_x }})),
                  fun = mean, geom = "bar", width = bar_width, color = "black",
@@ -703,7 +704,7 @@ stiffness_bar_panel <- function(group, title) {
     pre_post_positions() |>
     ggplot(aes(y = k_lin)) +
     mean_se_layers(box_x, x_num, line_group = "ParticipantID") +
-    scale_x_continuous(breaks = c(1.5, 2.5), labels = c("Pre", "Post"), limits = c(1.3, 2.7)) +
+    scale_x_continuous(breaks = c(1.5, 2.5), labels = c("Pre", "Post"), limits = c(1.2, 2.8)) +
     scale_y_continuous(limits = c(0, 420), breaks = seq(0, 400, by = 100),
                        expand = expansion(mult = c(0, 0.02))) +
     scale_fill_manual(values = c("1.5" = col_light, "2.5" = col_dark)) +
@@ -723,8 +724,8 @@ stiffness_diff_fig <- diff_data |>
          box_x = if_else(compliance == "Nonuser", 1, 1.5)) |>
   ggplot(aes(y = k_lin)) +
   geom_hline(yintercept = 0, color = "black", linewidth = jap_line_width, linetype = "dashed") +
-  mean_se_layers(box_x, x_num, bar_width = 0.14) + # x-axis spans half the range of panels A-B
-  scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.9, 1.6)) +
+  mean_se_layers(box_x, x_num, bar_width = 0.18) + # narrower x range than panels A-B
+  scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.8, 1.7)) +
   scale_fill_manual(values = c("1" = col_light, "1.5" = col_dark)) +
   participant_color_scale +
   scale_y_continuous(limits = c(-20, 35), breaks = seq(-20, 30, by = 10)) +
@@ -861,11 +862,11 @@ steps_fig <- function(y, y_label, y_max, y_step) {
            box_x = if_else(Compliance == "Nonuser", 1, 1.5)) |>
     ggplot(aes(x = box_x, y = {{ y }})) +
     stat_summary(aes(group = box_x, fill = factor(box_x)), fun = mean, geom = "bar",
-                 width = 0.14, color = "black", linewidth = jap_line_width) +
+                 width = 0.18, color = "black", linewidth = jap_line_width) +
     stat_summary(aes(group = box_x), fun.data = mean_se, geom = "errorbar",
-                 width = 0.07, color = "black", linewidth = jap_line_width) +
+                 width = 0.09, color = "black", linewidth = jap_line_width) +
     geom_point(aes(x = x_num, color = ParticipantID), size = 1.5) +
-    scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.9, 1.6)) +
+    scale_x_continuous(breaks = c(1, 1.5), labels = c("Nonusers", "Users"), limits = c(0.8, 1.7)) +
     scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0, 0.05)),
                        breaks = scales::breaks_width(y_step), labels = scales::label_comma()) +
     coord_cartesian(clip = "off") +
