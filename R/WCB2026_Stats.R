@@ -872,7 +872,7 @@ steps_fig <- function(y, y_label, y_max, y_step) {
     coord_cartesian(clip = "off") +
     scale_fill_manual(values = c("1" = col_light, "1.5" = col_dark)) +
     participant_color_scale +
-    labs(x = "Group", y = y_label) + # no panel titles: the y-axis titles name each measure
+    labs(x = NULL, y = y_label) + # tick labels name the groups # no panel titles: the y-axis titles name each measure
     theme_wcb() +
     theme_jap +
     # the whole figure is square (see save_fig below), not each panel
