@@ -572,6 +572,7 @@ reg_fig <- function(predictor, x_label, x_scale, title = NULL, axis_title_size =
 # titles; statistics go in the legend). Line widths and point sizes are scaled
 # down to match.
 jap_width      <- 3.5 # in, single column
+jap_width_mid  <- 5   # in, 1.5 columns: same 8 pt text, so the plots are larger relative to it
 jap_point_size <- 1.2
 jap_line_width <- 0.3
 theme_jap <- theme(
@@ -881,9 +882,7 @@ steps_fig <- function(y, y_label, y_max, y_step) {
     participant_color_scale +
     labs(x = NULL, y = y_label) + # tick labels name the groups # no panel titles: the y-axis titles name each measure
     theme_wcb() +
-    theme_jap +
-    # the whole figure is square (see save_fig below), not each panel
-    theme(aspect.ratio = NULL)
+    theme_jap # square panels (aspect.ratio = 1 in theme_jap)
 }
 
 # Dashed line: 1000 steps per day in heels
@@ -894,7 +893,9 @@ total_steps_fig <- steps_fig(TotalSteps, "Total Steps per Day", 16000, 2500)
 # Journal of Applied Physiology format (see theme_jap)
 combined_steps_fig <- jap_combine(list(htd_steps_fig, total_steps_fig), ncol = 2)
 combined_steps_fig
-save_fig(combined_steps_fig, "users_vs_nonusers_steps_fig.pdf", width = jap_width, height = jap_width) # square
+# 1.5-column width, so the panels are large relative to the 8 pt text; the
+# height fits the square panels with no blank space above or below
+save_fig(combined_steps_fig, "users_vs_nonusers_steps_fig.pdf", width = jap_width_mid, height = 2.3)
 
 
 # 14. Stance-phase time series: participant averages ------------------------
