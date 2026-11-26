@@ -494,9 +494,10 @@ theme_wcb <- function() {
 # Box plot of two paired conditions with each participant's values joined by a
 # line. data needs box_x (1.5 / 2.5, box centers) and x_num (1.7 / 2.3, points)
 # point_size and line_width default to the poster sizes; journal figures pass
-# jap_point_size and jap_line_width.
+# jap_point_size and jap_line_width. outlier_size is the size of the box plot
+# outlier points (ggplot's default, 1.5, unless given).
 paired_box_fig <- function(data, y, line_group, x_labels, title, subtitle, y_label, y_limits,
-                           point_size = 3, line_width = 0.5) {
+                           point_size = 3, line_width = 0.5, outlier_size = 1.5) {
   # ylim() silently drops values outside the limits (and changes the box
   # statistics), so stop if any data point would be hidden
   y_values <- pull(data, {{ y }})
@@ -507,7 +508,8 @@ paired_box_fig <- function(data, y, line_group, x_labels, title, subtitle, y_lab
   }
   ggplot(data, aes(x = box_x, y = {{ y }})) +
     geom_boxplot(aes(group = box_x, fill = factor(box_x)), width = 0.18, color = "black",
-                 linewidth = line_width, whisker.linewidth = line_width, staplewidth = 0.5) +
+                 linewidth = line_width, whisker.linewidth = line_width, staplewidth = 0.5,
+                 outlier.size = outlier_size) +
     geom_point(aes(x = x_num, color = ParticipantID), size = point_size) +
     geom_line(aes(x = x_num, group = {{ line_group }}, color = ParticipantID),
               linewidth = line_width) +
@@ -1074,7 +1076,7 @@ save_fig(strain_stance_fig, "flats_vs_heels_strain_stance_fig.pdf", width = 12.3
 # Four rows: GRF, EMA, AT force and AT strain. Left column: mean time series over
 # stance across participants (participant_curves, section 14), heels vs flats.
 # Right column: heels vs flats box plot of the matching per-trial summary value
-# with its Q2 test P value. The box plots have the same figure-vs-test caveat as
+# (Q2 test P values go in the figure legend). The box plots have the same figure-vs-test caveat as
 # section 12: boxes pool every participant-visit, while the tests use one value
 # per participant. Forces are in body weights (BW).
 #
@@ -1116,47 +1118,51 @@ stance_means <- participant_curves |>
   full_join(ema_extended, by = c("Condition", "stance_pct")) |>
   arrange(Condition, stance_pct)
 
-# Smaller text so eight panels fit on one figure
-theme_summary_grid <- theme(
-  plot.title    = element_text(size = 18),
-  plot.subtitle = element_text(size = 13),
-  axis.title.x  = element_text(size = 14, margin = margin(t = 6)),
-  axis.title.y  = element_text(size = 14, margin = margin(r = 6)),
-  axis.text     = element_text(size = 12, color = "black"),
-  legend.text   = element_text(size = 13)
+# Journal (JAP) styling, as in sections 11 and 13: square panels, 8 pt text, no
+# panel titles or P values (statistics go in the figure legend).
+
+# Stance axis for the journal panels: plain numbers (0 = heel strike, 100 =
+# toe-off, stated in the legend), since the event labels do not fit at 8 pt
+stance_x_scale_jap <- scale_x_continuous(
+  name = "Stance (%)", breaks = seq(0, 100, by = 25), limits = c(0, 100),
+  expand = expansion(mult = c(0, 0.02))
 )
 
 # Mean time series over stance, heels vs flats. Flats are drawn last so the
 # dashed line stays visible where it overlaps the solid heels line. The legend
-# is drawn in one panel only (bottom center of the GRF panel, below the curves),
+# is drawn in one panel only (top right of the EMA panel, where it is empty),
 # and the x-axis title on the bottom row only.
-stance_panel <- function(y, title, y_label, show_legend = FALSE, show_x_title = FALSE,
+stance_panel <- function(y, y_label, show_legend = FALSE, show_x_title = FALSE,
                          y_scale = scale_y_continuous()) {
   stance_means |>
     filter(!is.na({{ y }})) |> # EMA crossing points have no GRF, force or strain
     mutate(Condition = factor(Condition, levels = c("HEEL", "FLAT"))) |> # draw order: flats on top
     ggplot(aes(x = stance_pct, y = {{ y }}, color = Condition, linetype = Condition)) +
-    geom_line(linewidth = 1.2) +
-    stance_x_scale +
+    geom_line(linewidth = 0.6) +
+    stance_x_scale_jap +
     y_scale +
     # Flats in col_light, dashed so the light color stays visible
     scale_color_manual(name = NULL, values = c("FLAT" = col_light, "HEEL" = col_dark),
                        breaks = c("FLAT", "HEEL"), labels = c("Flats", "Heels")) +
     scale_linetype_manual(name = NULL, values = c("FLAT" = "dashed", "HEEL" = "solid"),
                           breaks = c("FLAT", "HEEL"), labels = c("Flats", "Heels")) +
-    labs(title = title, y = y_label) +
+    labs(y = y_label) +
     theme_wcb() +
-    theme_summary_grid +
+    theme_jap +
     theme(
-      axis.title.x           = if (show_x_title) element_text(size = 14) else element_blank(),
+      axis.title.x           = if (show_x_title) element_text(size = 8, margin = margin(t = 3)) else element_blank(),
       legend.position        = if (show_legend) "inside" else "none",
-      legend.position.inside = c(0.5, 0.04),
-      legend.justification   = c("center", "bottom"),
-      legend.direction       = "horizontal",
-      legend.background      = element_rect(fill = "white", color = "black", linewidth = 0.4),
-      legend.key             = element_rect(fill = "white", color = NA),
-      legend.key.width       = unit(2.5, "lines"),
-      plot.margin            = margin(t = 5, r = 25, b = 5, l = 5) # room for "Toe-off"
+      legend.position.inside = c(0.98, 0.98),
+      legend.justification   = c("right", "top"),
+      legend.direction       = "vertical",
+      legend.text            = element_text(size = 7),
+      legend.background      = element_blank(),
+      legend.key             = element_blank(),
+      legend.key.width       = unit(1.2, "lines"),
+      legend.key.height      = unit(0.6, "lines"),
+      legend.spacing.x       = unit(2, "pt"),
+      legend.margin          = margin(0, 0, 0, 0),
+      plot.margin            = margin(14, 8, 4, 4) # room for "100"
     )
 }
 
@@ -1166,30 +1172,41 @@ padded_limits <- function(x) {
   r + c(-1, 1) * 0.08 * diff(r)
 }
 
-summary_box_panel <- function(y, title, test, y_label) {
+# Heels vs flats box plot of one per-trial summary value (the name is used only
+# in paired_box_fig's error message; it is not drawn)
+summary_box_panel <- function(y, name, y_label) {
   paired_box_fig(heels_flats_comp, {{ y }}, interaction(ParticipantID, Time),
-                 c("Flats", "Heels"), title, format_p(test$p_val), y_label,
-                 padded_limits(pull(heels_flats_comp, {{ y }}))) +
-    theme_summary_grid +
+                 c("Flats", "Heels"), name, NULL, y_label,
+                 padded_limits(pull(heels_flats_comp, {{ y }})),
+                 point_size = jap_point_size, line_width = jap_line_width,
+                 outlier_size = jap_point_size) +
+    labs(title = NULL, subtitle = NULL) +
+    theme_jap +
     theme(axis.title.x = element_blank())
 }
 
-stance_summary_fig <- plot_grid(
-  stance_panel(grf, "Ground Reaction Force", "GRF (BW)", show_legend = TRUE),
-  summary_box_panel(pushoff_Fr, "Push-off Peak GRF", pushoff_GRF_test, "Push-off Peak GRF (BW)"),
-  stance_panel(ema, "Effective Mechanical Advantage", "EMA (r/R)",
-               y_scale = scale_y_continuous(limits = c(0, ema_ymax),
-                                            breaks = seq(0, ema_ymax, by = 0.25))),
-  summary_box_panel(EMA_pushoff, "EMA at Push-off GRF Peak", EMA_test, "EMA (r/R)"),
-  stance_panel(fmtu, "Achilles Tendon Force", "AT Force (BW)"),
-  summary_box_panel(peak_Fmtu, "Peak AT Force", peak_Fmtu_test, "Peak AT Force (BW)"),
-  stance_panel(strain, "Achilles Tendon Strain", "AT Strain (%)", show_x_title = TRUE),
-  summary_box_panel(peak_strain, "Peak Strain", peak_strain_test, "Peak AT Strain (%)"),
-  ncol = 2, rel_widths = c(1.6, 1), align = "hv", axis = "tblr",
-  labels = LETTERS[1:8], label_size = 16
+stance_summary_fig <- jap_combine(
+  list(
+    stance_panel(grf, "rGRF (BW)"),
+    summary_box_panel(pushoff_Fr, "Push-off Peak rGRF", "Push-off Peak\nrGRF (BW)"),
+    stance_panel(ema, "EMA (r/R)", show_legend = TRUE,
+                 y_scale = scale_y_continuous(limits = c(0, ema_ymax),
+                                              breaks = seq(0, ema_ymax, by = 0.25))),
+    summary_box_panel(EMA_pushoff, "EMA at Push-off GRF Peak", "EMA (r/R)"),
+    stance_panel(fmtu, "AT Force (BW)"),
+    summary_box_panel(peak_Fmtu, "Peak AT Force", "Peak AT Force (BW)"),
+    stance_panel(strain, "AT Strain (%)", show_x_title = TRUE),
+    summary_box_panel(peak_strain, "Peak Strain", "Peak AT Strain (%)")
+  ) |>
+    # Panels fill their cells, and the figure height is set so the plotting
+    # areas come out square; locking each panel to a square instead leaves
+    # blank bands between the rows. The bottom row is taller by the height of
+    # the x-axis title.
+    map(~ .x + theme(aspect.ratio = NULL)),
+  ncol = 2, rel_heights = c(1, 1, 1, 1.1)
 )
 stance_summary_fig
-save_fig(stance_summary_fig, "flats_vs_heels_stance_summary_fig.pdf", width = 12, height = 16)
+save_fig(stance_summary_fig, "flats_vs_heels_stance_summary_fig.pdf", width = jap_width, height = 7.05)
 
 
 # 18. Statistics summary sheet --------------------------------------------------
