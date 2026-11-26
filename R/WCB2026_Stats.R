@@ -591,11 +591,12 @@ theme_jap <- theme(
 )
 
 # Combine journal panels on one white background, labeled A, B, ...
-jap_combine <- function(plots, ncol) {
+# (further arguments, e.g. rel_heights, go to plot_grid)
+jap_combine <- function(plots, ncol, ...) {
   ggdraw() +
     draw_plot(plot_grid(plotlist = plots, ncol = ncol,
                         labels = LETTERS[seq_along(plots)], label_size = 10,
-                        label_fontfamily = "Helvetica", align = "hv", axis = "tblr")) +
+                        label_fontfamily = "Helvetica", align = "hv", axis = "tblr", ...)) +
     theme(plot.background = element_rect(fill = "white", color = NA))
 }
 
@@ -748,12 +749,16 @@ stiffness_steps_fig <- reg_fig(
   theme_jap_titled +
   theme(plot.margin = margin(4, 14, 4, 4)) # room for the last x tick label
 
+# Square figure: panels fill their cells instead of being square, and the
+# bottom row is slightly taller to hold panel D's x-axis title, so the two
+# rows' plotting areas match with no blank band between the rows
 combined_stiffness_fig <- jap_combine(
-  list(stiffness_users_fig, stiffness_nonusers_fig, stiffness_diff_fig, stiffness_steps_fig),
-  ncol = 2
+  list(stiffness_users_fig, stiffness_nonusers_fig, stiffness_diff_fig, stiffness_steps_fig) |>
+    map(~ .x + theme(aspect.ratio = NULL)),
+  ncol = 2, rel_heights = c(1, 1.08)
 )
 combined_stiffness_fig
-save_fig(combined_stiffness_fig, "users_vs_nonusers_stiffness_fig.pdf", width = jap_width, height = 3.75)
+save_fig(combined_stiffness_fig, "users_vs_nonusers_stiffness_fig.pdf", width = jap_width, height = jap_width)
 
 
 # 12. Figure: Q2 heels vs flats loading and strain -----------------------------
