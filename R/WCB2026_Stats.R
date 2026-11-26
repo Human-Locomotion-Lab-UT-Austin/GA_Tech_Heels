@@ -1076,10 +1076,13 @@ save_fig(strain_stance_fig, "flats_vs_heels_strain_stance_fig.pdf", width = 12.3
 
 # Four rows: GRF, EMA, AT force and AT strain. Left column: mean time series over
 # stance across participants (participant_curves, section 14), heels vs flats.
-# Right column: heels vs flats box plot of the matching per-trial summary value
-# (Q2 test P values go in the figure legend). The box plots have the same figure-vs-test caveat as
-# section 12: boxes pool every participant-visit, while the tests use one value
-# per participant. Forces are in body weights (BW).
+# Right column: heels vs flats bar plot (mean +/- SE) of the matching per-trial
+# summary value, with each participant-visit's flats and heels values joined by
+# a line (Q2 test P values go in the figure legend). The y-axes do not start at
+# zero, which a break mark near the bottom of each y-axis shows. The bars have
+# the same figure-vs-test caveat as section 12: they pool every
+# participant-visit, while the tests use one value per participant. Forces are
+# in body weights (BW).
 #
 # EMA: the time series is mean r / mean R across participants at every point of
 # stance, drawn from where it first falls to ema_ymax (1.25) through toe-off.
@@ -1174,31 +1177,73 @@ padded_limits <- function(x) {
   r + c(-1, 1) * 0.08 * diff(r)
 }
 
-# Heels vs flats box plot of one per-trial summary value (the name is used only
-# in paired_box_fig's error message; it is not drawn)
-summary_box_panel <- function(y, name, y_label) {
-  paired_box_fig(heels_flats_comp, {{ y }}, interaction(ParticipantID, Time),
-                 c("Flats", "Heels"), name, NULL, y_label,
-                 padded_limits(pull(heels_flats_comp, {{ y }})),
-                 point_size = jap_point_size, line_width = jap_line_width,
-                 outlier_size = jap_point_size) +
-    labs(title = NULL, subtitle = NULL) +
+# Heels vs flats bar plot of one per-trial summary value: bar = mean, error
+# bar = SE, as in the stiffness figure (section 11). The y-axis keeps the
+# range of the earlier box plots (data range padded 8%, plus ggplot's 5%
+# expansion), so each bar is drawn from the bottom of the axis up to the mean.
+# Two short diagonal lines across the y-axis near its bottom mark the break.
+summary_bar_panel <- function(y, y_label) {
+  y_lims    <- padded_limits(pull(heels_flats_comp, {{ y }}))
+  y_bottom  <- y_lims[1] - 0.05 * diff(y_lims)           # bottom of the axis (5% expansion)
+  y_top     <- y_lims[2] + 0.05 * diff(y_lims)
+  y_breaks  <- scales::breaks_extended()(c(y_bottom, y_top)) # same ticks as the box plots
+  y_breaks  <- y_breaks[y_breaks >= y_bottom & y_breaks <= y_top]
+  y_mark    <- y_bottom + 0.4 * (min(y_breaks) - y_bottom) # break mark, below the lowest tick
+  dy        <- 0.025 * diff(y_lims)
+  x_axis    <- 1.2                                         # x of the y-axis line (no x expansion)
+  dx        <- 0.05
+  bar_half  <- 0.16
+  plot_data <- heels_flats_comp |>
+    filter(!is.na({{ y }})) |>
+    mutate(pair_id = paste(ParticipantID, Time))
+  bars <- plot_data |>
+    group_by(box_x) |>
+    summarize(mean_se(pick(everything()) |> pull({{ y }})))
+  ggplot(plot_data, aes(y = {{ y }})) +
+    geom_rect(data = bars, aes(xmin = box_x - bar_half, xmax = box_x + bar_half,
+                               ymin = y_bottom, ymax = y, fill = factor(box_x)),
+              inherit.aes = FALSE, color = "black", linewidth = jap_line_width) +
+    geom_errorbar(data = bars, aes(x = box_x, ymin = ymin, ymax = ymax), inherit.aes = FALSE,
+                  width = bar_half, color = "black", linewidth = jap_line_width) +
+    geom_line(aes(x = x_num, group = pair_id, color = ParticipantID), linewidth = jap_line_width) +
+    geom_point(aes(x = x_num, color = ParticipantID), size = jap_point_size) +
+    # y-axis line drawn here in two pieces with a gap at the break (the
+    # theme's y-axis line is turned off below), then two diagonal lines
+    annotate("segment", x = x_axis, xend = x_axis, y = y_bottom, yend = y_mark - dy,
+             color = "black", linewidth = jap_line_width) +
+    annotate("segment", x = x_axis, xend = x_axis, y = y_mark + dy, yend = y_top,
+             color = "black", linewidth = jap_line_width) +
+    annotate("segment", x = x_axis - dx, xend = x_axis + dx,
+             y = y_mark - dy - dy * 0.8, yend = y_mark - dy + dy * 0.8,
+             color = "black", linewidth = jap_line_width) +
+    annotate("segment", x = x_axis - dx, xend = x_axis + dx,
+             y = y_mark + dy - dy * 0.8, yend = y_mark + dy + dy * 0.8,
+             color = "black", linewidth = jap_line_width) +
+    # x and y ranges set in coord_cartesian, not the scales, so the break
+    # marks just left of the axis are not dropped as out of range
+    scale_x_continuous(breaks = c(1.5, 2.5), labels = c("Flats", "Heels")) +
+    scale_y_continuous(breaks = y_breaks) +
+    coord_cartesian(xlim = c(x_axis, 2.8), ylim = c(y_bottom, y_top), expand = FALSE, clip = "off") +
+    scale_fill_manual(values = c("1.5" = col_light, "2.5" = col_dark)) +
+    participant_color_scale +
+    labs(x = NULL, y = y_label) + # tick labels name the conditions
+    theme_wcb() +
     theme_jap +
-    theme(axis.title.x = element_blank())
+    theme(axis.line.y = element_blank())
 }
 
 stance_summary_fig <- jap_combine(
   list(
     stance_panel(grf, "rGRF (BW)", show_legend = TRUE),
-    summary_box_panel(pushoff_Fr, "Push-off Peak rGRF", "Push-off Peak\nrGRF (BW)"),
+    summary_bar_panel(pushoff_Fr, "Push-off Peak\nrGRF (BW)"),
     stance_panel(ema, "EMA (r/R)",
                  y_scale = scale_y_continuous(limits = c(0, ema_ymax),
                                               breaks = seq(0, ema_ymax, by = 0.25))),
-    summary_box_panel(EMA_pushoff, "EMA at Push-off GRF Peak", "EMA (r/R)"),
+    summary_bar_panel(EMA_pushoff, "EMA (r/R)"),
     stance_panel(fmtu, "AT Force (BW)"),
-    summary_box_panel(peak_Fmtu, "Peak AT Force", "Peak AT Force (BW)"),
+    summary_bar_panel(peak_Fmtu, "Peak AT Force (BW)"),
     stance_panel(strain, "AT Strain (%)", show_x_title = TRUE),
-    summary_box_panel(peak_strain, "Peak Strain", "Peak AT Strain (%)")
+    summary_bar_panel(peak_strain, "Peak AT Strain (%)")
   ) |>
     # Panels fill their cells, and the figure height is set so the plotting
     # areas come out square; locking each panel to a square instead leaves
