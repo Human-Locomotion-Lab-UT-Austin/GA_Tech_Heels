@@ -1195,7 +1195,10 @@ summary_bar_panel <- function(y, y_label) {
   bar_half  <- 0.16
   plot_data <- heels_flats_comp |>
     filter(!is.na({{ y }})) |>
-    mutate(pair_id = paste(ParticipantID, Time))
+    # points moved toward the center (from 1.7 / 2.3), clear of the bar edges
+    # at 1.66 / 2.34
+    mutate(pair_id = paste(ParticipantID, Time),
+           x_num   = if_else(Condition == "Flats", 1.82, 2.18))
   bars <- plot_data |>
     group_by(box_x) |>
     summarize(mean_se(pick(everything()) |> pull({{ y }})))
