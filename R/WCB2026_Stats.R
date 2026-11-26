@@ -586,7 +586,8 @@ theme_jap <- theme(
   # background: separate white panel backgrounds can leave thin gray seams
   # between panels in some PDF viewers
   plot.background = element_blank(),
-  plot.margin  = margin(14, 6, 4, 4) # top margin leaves room for the panel letters
+  plot.margin  = margin(14, 6, 4, 4), # top margin leaves room for the panel letters
+  aspect.ratio = 1                    # square plotting areas, for compact figures
 )
 
 # Combine journal panels on one white background, labeled A, B, ...
@@ -743,14 +744,15 @@ stiffness_steps_fig <- reg_fig(
 ) +
   labs(title = "Steps in Heels", subtitle = NULL) +
   theme_jap +
-  theme_jap_titled
+  theme_jap_titled +
+  theme(plot.margin = margin(4, 10, 4, 4)) # room for the last x tick label
 
 combined_stiffness_fig <- jap_combine(
   list(stiffness_users_fig, stiffness_nonusers_fig, stiffness_diff_fig, stiffness_steps_fig),
   ncol = 2
 )
 combined_stiffness_fig
-save_fig(combined_stiffness_fig, "users_vs_nonusers_stiffness_fig.pdf", width = jap_width, height = 5.5)
+save_fig(combined_stiffness_fig, "users_vs_nonusers_stiffness_fig.pdf", width = jap_width, height = 3.9)
 
 
 # 12. Figure: Q2 heels vs flats loading and strain -----------------------------
@@ -875,14 +877,15 @@ steps_fig <- function(y, y_label, y_max, y_step) {
 }
 
 # Dashed line: 1000 steps per day in heels
-htd_steps_fig <- steps_fig(HTDSteps, "Steps in High Heels per Day", 3800, 500) +
+# (two-line y-axis titles and 1,000-step breaks so they fit the square panels)
+htd_steps_fig <- steps_fig(HTDSteps, "Steps in High Heels\nper Day", 3800, 1000) +
   geom_hline(yintercept = 1000, color = "black", linewidth = jap_line_width, linetype = "dashed")
-total_steps_fig <- steps_fig(TotalSteps, "Total Steps per Day", 16000, 2500)
+total_steps_fig <- steps_fig(TotalSteps, "Total Steps\nper Day", 16000, 5000)
 
 # Journal of Applied Physiology format (see theme_jap)
 combined_steps_fig <- jap_combine(list(htd_steps_fig, total_steps_fig), ncol = 2)
 combined_steps_fig
-save_fig(combined_steps_fig, "users_vs_nonusers_steps_fig.pdf", width = jap_width, height = 2.75)
+save_fig(combined_steps_fig, "users_vs_nonusers_steps_fig.pdf", width = jap_width, height = 1.65)
 
 
 # 14. Stance-phase time series: participant averages ------------------------
