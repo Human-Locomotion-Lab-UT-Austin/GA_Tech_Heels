@@ -1238,7 +1238,7 @@ summary_bar_panel <- function(y, y_label) {
 stance_summary_fig <- jap_combine(
   list(
     stance_panel(grf, "rGRF (BW)", show_legend = TRUE),
-    summary_bar_panel(pushoff_Fr, "Push-off Peak\nrGRF (BW)"),
+    summary_bar_panel(pushoff_Fr, "rGRF (BW)"),
     stance_panel(ema, "EMA (r/R)",
                  y_scale = scale_y_continuous(limits = c(0, ema_ymax),
                                               breaks = seq(0, ema_ymax, by = 0.25))),
