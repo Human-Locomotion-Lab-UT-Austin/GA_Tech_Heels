@@ -709,7 +709,7 @@ stiffness_bar_panel <- function(group, title) {
                        expand = expansion(mult = c(0, 0.02))) +
     scale_fill_manual(values = c("1.5" = col_light, "2.5" = col_dark)) +
     participant_color_scale +
-    labs(title = title, x = "Timepoint", y = "Tendon Stiffness (N/mm)") +
+    labs(title = title, x = NULL, y = "Tendon Stiffness (N/mm)") + # tick labels name the timepoints
     theme_wcb() +
     theme_jap +
     theme_jap_titled
@@ -729,7 +729,7 @@ stiffness_diff_fig <- diff_data |>
   scale_fill_manual(values = c("1" = col_light, "1.5" = col_dark)) +
   participant_color_scale +
   scale_y_continuous(limits = c(-20, 35), breaks = seq(-20, 30, by = 10)) +
-  labs(title = "Between Groups", x = "Group",
+  labs(title = "Between Groups", x = NULL, # tick labels name the groups
        y = expression(paste(Delta, "Tendon Stiffness (%)"))) +
   theme_wcb() +
   theme_jap +
@@ -746,14 +746,14 @@ stiffness_steps_fig <- reg_fig(
   labs(title = "Steps in Heels", subtitle = NULL) +
   theme_jap +
   theme_jap_titled +
-  theme(plot.margin = margin(4, 10, 4, 4)) # room for the last x tick label
+  theme(plot.margin = margin(4, 14, 4, 4)) # room for the last x tick label
 
 combined_stiffness_fig <- jap_combine(
   list(stiffness_users_fig, stiffness_nonusers_fig, stiffness_diff_fig, stiffness_steps_fig),
   ncol = 2
 )
 combined_stiffness_fig
-save_fig(combined_stiffness_fig, "users_vs_nonusers_stiffness_fig.pdf", width = jap_width, height = 3.9)
+save_fig(combined_stiffness_fig, "users_vs_nonusers_stiffness_fig.pdf", width = jap_width, height = 3.75)
 
 
 # 12. Figure: Q2 heels vs flats loading and strain -----------------------------
